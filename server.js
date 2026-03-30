@@ -279,7 +279,10 @@ IMPORTANTE: Gere APENAS esses itens. Use os títulos exatos dos tópicos como es
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', deepseek_configured: !!DEEPSEEK_API_KEY });
 });
-
+// Rota principal - serve o index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`DeepSeek: ${DEEPSEEK_API_KEY ? '✅ Configurado' : '❌ Não configurado'}`);
