@@ -15,7 +15,6 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
-// Função para chamar a DeepSeek
 async function callDeepSeek(prompt) {
     const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
         method: 'POST',
@@ -26,7 +25,7 @@ async function callDeepSeek(prompt) {
         body: JSON.stringify({
             model: DEEPSEEK_MODEL,
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
+            temperature: 0.6,
             max_tokens: 4000
         })
     });
@@ -40,8 +39,8 @@ async function callDeepSeek(prompt) {
     return data.choices[0].message.content;
 }
 
-// Extrai as seções do texto colado
-function extractSections(text) {
+// Extrai as seções do texto colado, preservando o conteúdo original intacto
+function extractOriginalSections(text) {
     const lines = text.split('\n');
     let sections = {
         title: '',
@@ -49,7 +48,7 @@ function extractSections(text) {
         appliedTruth: '',
         referenceTexts: '',
         introduction: '',
-        topics: [],
+        topicsFull: '',      // todo o bloco de tópicos (1., 1.1., etc.) preservado
         conclusion: ''
     };
 
@@ -97,41 +96,52 @@ function extractSections(text) {
             currentSection = 'conclusion';
             buffer = [];
         }
-        // Tópico principal (1., 2., 3.)
+        // Tópicos – detecta início de tópico principal (1., 2., 3.)
         else if (line.match(/^\d+\.\s+[A-Za-zÀ-ú]/) && !line.includes('.')) {
-            if (currentSection === 'topics') {
-                sections.topics.push(buffer.join('\n').trim());
+            if (currentSection !== 'topics') {
+                // Se estava coletando outra seção, finaliza
+                if (currentSection === 'introduction') sections.introduction = buffer.join('\n').trim();
+                if (currentSection === 'conclusion') sections.conclusion = buffer.join('\n').trim();
+                if (currentSection === 'referenceTexts') sections.referenceTexts = buffer.join('\n').trim();
+                currentSection = 'topics';
                 buffer = [];
             }
-            currentSection = 'topics';
             buffer.push(line);
         }
-        // Capturar conteúdo das seções
+        // Captura conteúdo das seções
         else if (currentSection && line.trim()) {
             buffer.push(line);
         }
     }
 
-    // Último tópico
-    if (currentSection === 'topics' && buffer.length) {
-        sections.topics.push(buffer.join('\n').trim());
+    // Finaliza as seções que estavam sendo coletadas
+    if (currentSection === 'introduction') sections.introduction = buffer.join('\n').trim();
+    if (currentSection === 'conclusion') sections.conclusion = buffer.join('\n').trim();
+    if (currentSection === 'referenceTexts') sections.referenceTexts = buffer.join('\n').trim();
+    if (currentSection === 'topics') sections.topicsFull = buffer.join('\n').trim();
+
+    // Se a introdução não foi capturada corretamente, tenta extrair de forma mais robusta
+    if (!sections.introduction) {
+        const introMatch = text.match(/INTRODUÇÃO\s*\n([\s\S]*?)(?=\n\d+\.\s+)/i);
+        if (introMatch) sections.introduction = introMatch[1].trim();
     }
 
-    // Atribuir buffers das outras seções
-    if (sections.referenceTexts === '') sections.referenceTexts = buffer.join('\n').trim();
-    if (sections.introduction === '') sections.introduction = buffer.join('\n').trim();
-    if (sections.conclusion === '') sections.conclusion = buffer.join('\n').trim();
+    // Se a conclusão não foi capturada corretamente
+    if (!sections.conclusion) {
+        const concMatch = text.match(/CONCLUSÃO\s*\n([\s\S]*?)$/i);
+        if (concMatch) sections.conclusion = concMatch[1].trim();
+    }
 
     return sections;
 }
 
 // Extrai os títulos dos tópicos principais (1., 2., 3.)
-function extractTopicTitles(topicsArray) {
+function extractMainTopicTitles(topicsFull) {
     const titles = [];
-    for (const topic of topicsArray) {
-        const firstLine = topic.split('\n')[0];
-        if (firstLine.match(/^\d+\.\s+/)) {
-            titles.push(firstLine.trim());
+    const lines = topicsFull.split('\n');
+    for (const line of lines) {
+        if (line.match(/^\d+\.\s+[A-Za-zÀ-ú]/) && !line.includes('.')) {
+            titles.push(line.trim());
         }
     }
     return titles;
@@ -143,33 +153,33 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
         const { titulo, textoOriginal, publico } = req.body;
         console.log('Requisição recebida:', { titulo, tamanho: textoOriginal?.length });
 
-        // Extrair as seções
-        const sections = extractSections(textoOriginal);
-        const topicTitles = extractTopicTitles(sections.topics);
-        const finalTitle = titulo || sections.title;
+        // Extrai o conteúdo original completo
+        const original = extractOriginalSections(textoOriginal);
+        const finalTitle = titulo || original.title;
+        const topicTitles = extractMainTopicTitles(original.topicsFull);
 
-        // Preparar o conteúdo que será enviado para a IA
-        const baseContent = `
+        // Conteúdo que será enviado para a IA gerar apenas os itens que faltam
+        const baseContentForAI = `
 Título: ${finalTitle}
-Texto Áureo: ${sections.keyVerse}
-Verdade Aplicada: ${sections.appliedTruth}
+Texto Áureo: ${original.keyVerse}
+Verdade Aplicada: ${original.appliedTruth}
 Textos de Referência:
-${sections.referenceTexts}
+${original.referenceTexts}
 
 Introdução:
-${sections.introduction}
+${original.introduction}
 
-Tópicos:
-${sections.topics.map((t, idx) => `${idx+1}. ${t.split('\n')[0]}`).join('\n')}
+Tópicos (preserve os títulos e subtópicos):
+${original.topicsFull}
 
 Conclusão:
-${sections.conclusion}
+${original.conclusion}
         `;
 
-        // Gerar apenas os itens que faltam
+        // Gera os itens complementares
         let generated = '';
         try {
-            const prompt = `Você é um professor de EBD. Com base no conteúdo abaixo, gere APENAS os seguintes elementos:
+            const prompt = `Você é um professor de EBD. Com base no conteúdo da lição abaixo, gere APENAS os seguintes elementos:
 
 1. UMA ANÁLISE GERAL (3-4 parágrafos)
 2. PARA CADA UM DOS ${topicTitles.length} TÓPICOS PRINCIPAIS, gere:
@@ -204,22 +214,25 @@ Use o seguinte formato exato:
 [texto]
 
 Aqui está o conteúdo da lição:
-${baseContent}
+${baseContentForAI}
 
-IMPORTANTE: Gere APENAS esses itens. Use os títulos exatos dos tópicos como estão.`;
+IMPORTANTE: 
+- Gere APENAS esses itens. 
+- Não inclua título, texto áureo, verdade aplicada, textos de referência, introdução, tópicos ou conclusão. 
+- Use os títulos exatos dos tópicos como estão listados acima.`;
 
             generated = await callDeepSeek(prompt);
-            console.log('Gerado com sucesso, tamanho:', generated.length);
+            console.log('Conteúdo gerado pela IA (primeiros 500 chars):', generated.substring(0, 500));
         } catch (err) {
             console.error('Erro ao chamar DeepSeek:', err);
             generated = '';
         }
 
-        // Montar a lição final
+        // Montar a lição final, preservando TODO o conteúdo original
         let finalLesson = `${finalTitle}\n\n`;
-        finalLesson += `📖 TEXTO ÁUREO\n${sections.keyVerse}\n\n`;
-        finalLesson += `🎯 VERDADE APLICADA\n${sections.appliedTruth}\n\n`;
-        finalLesson += `📚 TEXTOS DE REFERÊNCIA\n${sections.referenceTexts}\n\n`;
+        finalLesson += `📖 TEXTO ÁUREO\n${original.keyVerse}\n\n`;
+        finalLesson += `🎯 VERDADE APLICADA\n${original.appliedTruth}\n\n`;
+        finalLesson += `📚 TEXTOS DE REFERÊNCIA\n${original.referenceTexts}\n\n`;
 
         // Inserir análise geral (gerada)
         if (generated) {
@@ -229,41 +242,46 @@ IMPORTANTE: Gere APENAS esses itens. Use os títulos exatos dos tópicos como es
             }
         }
 
-        finalLesson += `✍️ INTRODUÇÃO\n${sections.introduction}\n\n`;
+        // Introdução original
+        finalLesson += `✍️ INTRODUÇÃO\n${original.introduction}\n\n`;
 
-        // Adicionar os tópicos originais completos (já contêm subtópicos e "EU ENSINEI QUE")
-        for (let i = 0; i < sections.topics.length; i++) {
-            finalLesson += `${sections.topics[i]}\n\n`;
+        // Tópicos completos (preservados integralmente)
+        finalLesson += `${original.topicsFull}\n\n`;
 
-            // Inserir apoio e aplicação para este tópico, se gerados
-            if (generated) {
-                const topicTitle = topicTitles[i] || `Tópico ${i+1}`;
-                // Escapar caracteres especiais para regex
-                const escapedTitle = topicTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const apoioMatch = generated.match(new RegExp(`📚 APOIO PEDAGÓGICO \\(${escapedTitle}\\)\\n([\\s\\S]*?)⚡ APLICAÇÃO PRÁTICA \\(${escapedTitle}\\)\\n([\\s\\S]*?)(?=📚 APOIO PEDAGÓGICO \\(|$)`));
-                if (apoioMatch && apoioMatch[1] && apoioMatch[2]) {
-                    finalLesson += `📚 APOIO PEDAGÓGICO\n${apoioMatch[1].trim()}\n\n`;
-                    finalLesson += `⚡ APLICAÇÃO PRÁTICA\n${apoioMatch[2].trim()}\n\n`;
+        // Inserir APOIO PEDAGÓGICO e APLICAÇÃO PRÁTICA para cada tópico principal
+        if (generated) {
+            for (let i = 0; i < topicTitles.length; i++) {
+                const title = topicTitles[i];
+                const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`📚 APOIO PEDAGÓGICO \\(${escapedTitle}\\)\\n([\\s\\S]*?)⚡ APLICAÇÃO PRÁTICA \\(${escapedTitle}\\)\\n([\\s\\S]*?)(?=📚 APOIO PEDAGÓGICO \\(|$)`);
+                const match = generated.match(regex);
+                if (match && match[1] && match[2]) {
+                    finalLesson += `📚 APOIO PEDAGÓGICO\n${match[1].trim()}\n\n`;
+                    finalLesson += `⚡ APLICAÇÃO PRÁTICA\n${match[2].trim()}\n\n`;
                 } else {
-                    // Tenta capturar sem os parênteses do título (caso a IA não use o título)
-                    const fallbackMatch = generated.match(new RegExp(`📚 APOIO PEDAGÓGICO\\n([\\s\\S]*?)⚡ APLICAÇÃO PRÁTICA\\n([\\s\\S]*?)(?=📚 APOIO PEDAGÓGICO|$)`));
-                    if (fallbackMatch && i < 3) {
-                        finalLesson += `📚 APOIO PEDAGÓGICO\n${fallbackMatch[1].trim()}\n\n`;
-                        finalLesson += `⚡ APLICAÇÃO PRÁTICA\n${fallbackMatch[2].trim()}\n\n`;
+                    // Fallback: tenta capturar na ordem sequencial (sem título específico)
+                    const fallbackMatches = generated.match(/📚 APOIO PEDAGÓGICO\n([\s\S]*?)⚡ APLICAÇÃO PRÁTICA\n([\s\S]*?)(?=📚 APOIO PEDAGÓGICO|$)/g);
+                    if (fallbackMatches && fallbackMatches[i]) {
+                        const fallback = fallbackMatches[i];
+                        const parts = fallback.match(/📚 APOIO PEDAGÓGICO\n([\s\S]*?)⚡ APLICAÇÃO PRÁTICA\n([\s\S]*?)$/);
+                        if (parts && parts[1] && parts[2]) {
+                            finalLesson += `📚 APOIO PEDAGÓGICO\n${parts[1].trim()}\n\n`;
+                            finalLesson += `⚡ APLICAÇÃO PRÁTICA\n${parts[2].trim()}\n\n`;
+                        }
                     }
                 }
             }
         }
 
         // Conclusão original
-        finalLesson += `🏁 CONCLUSÃO\n${sections.conclusion}\n\n`;
+        finalLesson += `🏁 CONCLUSÃO\n${original.conclusion}\n\n`;
 
-        // Adicionar Apoio Pedagógico Final e Aplicação Prática Final
+        // Apoio Pedagógico Final e Aplicação Prática Final
         if (generated) {
-            const apoioFinalMatch = generated.match(/📚 APOIO PEDAGÓGICO FINAL\n([\s\S]*?)⚡ APLICAÇÃO PRÁTICA FINAL\n([\s\S]*?)$/);
-            if (apoioFinalMatch && apoioFinalMatch[1] && apoioFinalMatch[2]) {
-                finalLesson += `📚 APOIO PEDAGÓGICO FINAL\n${apoioFinalMatch[1].trim()}\n\n`;
-                finalLesson += `⚡ APLICAÇÃO PRÁTICA FINAL\n${apoioFinalMatch[2].trim()}`;
+            const finalMatch = generated.match(/📚 APOIO PEDAGÓGICO FINAL\n([\s\S]*?)⚡ APLICAÇÃO PRÁTICA FINAL\n([\s\S]*?)$/);
+            if (finalMatch && finalMatch[1] && finalMatch[2]) {
+                finalLesson += `📚 APOIO PEDAGÓGICO FINAL\n${finalMatch[1].trim()}\n\n`;
+                finalLesson += `⚡ APLICAÇÃO PRÁTICA FINAL\n${finalMatch[2].trim()}`;
             }
         }
 
@@ -275,14 +293,15 @@ IMPORTANTE: Gere APENAS esses itens. Use os títulos exatos dos tópicos como es
     }
 });
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', deepseek_configured: !!DEEPSEEK_API_KEY });
-});
-// Rota principal - serve o index.html
+// Rota principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', deepseek_configured: !!DEEPSEEK_API_KEY });
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`DeepSeek: ${DEEPSEEK_API_KEY ? '✅ Configurado' : '❌ Não configurado'}`);
