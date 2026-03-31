@@ -27,10 +27,12 @@ async function callDeepSeek(prompt) {
             max_tokens: 8000
         })
     });
+
     if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`DeepSeek error: ${response.status} - ${errorText}`);
     }
+
     const data = await response.json();
     return data.choices[0].message.content;
 }
@@ -86,8 +88,6 @@ ${textoOriginal}
 Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito, sem asteriscos. Não use Markdown.`;
 
         const resultado = await callDeepSeek(prompt);
-
-        // Retorna o resultado como HTML para que o navegaco interprete as tags
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
@@ -95,6 +95,33 @@ Agora, elabore a lição completa seguindo rigorosamente este formato, usando ap
         res.status(500).json({ error: error.message });
     }
 });
+
+// Rota para baixar o conteúdo como arquivo RTF com formatação
+app.post('/api/download-word', (req, res) => {
+    const { conteudo } = req.body;
+    if (!conteudo) {
+        return res.status(400).json({ error: 'Conteúdo não fornecido' });
+    }
+
+    // Converte tags <strong> para formatação RTF
+    const textoRtf = converterParaRtf(conteudo);
+    const nomeArquivo = `licao_gerada_${Date.now()}.rtf`;
+
+    res.setHeader('Content-Type', 'application/rtf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+    res.send(textoRtf);
+});
+
+function converterParaRtf(htmlText) {
+    // RTF simples: substitui <strong> por \b e </strong> por \b0
+    let rtf = htmlText.replace(/<strong>(.*?)<\/strong>/gs, '{\\b $1}');
+    // Substitui quebras de linha por \par
+    rtf = rtf.replace(/\n/g, '\\par ');
+    // Escapa caracteres especiais
+    rtf = rtf.replace(/[\\{}]/g, '\\$&');
+    // Cabeçalho RTF
+    return `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Arial;}} \\f0\\fs24 ${rtf}}`;
+}
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
