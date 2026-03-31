@@ -138,56 +138,88 @@
     <script>
         let ultimoResultado = '';
 
+        // Detecção robusta do título a partir do texto colado/extraído
         function extrairTituloDoTexto() {
             const texto = document.getElementById('texto').value;
             const linhas = texto.split('\n');
             let tituloEncontrado = null;
+            let i = 0;
 
-            for (let i = 0; i < linhas.length; i++) {
-                const linha = linhas[i].trim();
-                if (!linha) continue;
+            while (i < linhas.length) {
+                let linha = linhas[i].trim();
+                if (!linha) { i++; continue; }
 
-                // Caso 1: "LIÇÃO 1: Título"
-                let match = linha.match(/^(LIÇÃO\s+\d+)(?:\s*[:\-]\s*)(.*)$/i);
+                // Caso 1: "LIÇÃO 1" ou "LICAO 2" na mesma linha (com ou sem dois pontos)
+                let match = linha.match(/^(LIÇÃO|LICAO)\s+(\d+)(?:\s*[:\-]\s*(.*))?$/i);
                 if (match) {
-                    tituloEncontrado = `${match[1]}: ${match[2]}`;
+                    let num = match[2];
+                    let resto = match[3] || '';
+                    if (resto) {
+                        tituloEncontrado = `LIÇÃO ${num}: ${resto}`;
+                    } else {
+                        // título nas próximas linhas
+                        let tituloPartes = [];
+                        let j = i + 1;
+                        while (j < linhas.length && linhas[j].trim() && !linhas[j].trim().match(/^\d+\./)) {
+                            let parte = linhas[j].trim();
+                            if (parte) tituloPartes.push(parte);
+                            j++;
+                        }
+                        let titulo = tituloPartes.join(' ').replace(/\s+/g, ' ');
+                        tituloEncontrado = `LIÇÃO ${num}: ${titulo}`;
+                    }
                     break;
                 }
 
-                // Caso 2: "LIÇÃO 1" (sem dois pontos) e título na próxima linha
-                match = linha.match(/^(LIÇÃO\s+\d+)$/i);
-                if (match && i + 1 < linhas.length && linhas[i+1].trim()) {
-                    const tituloLinha = linhas[i+1].trim();
-                    if (tituloLinha.match(/^[A-Z\s]{3,}/) && tituloLinha.length > 3) {
-                        tituloEncontrado = `${match[1]}: ${tituloLinha}`;
-                        break;
+                // Caso 2: "LIÇÃO" sozinha em uma linha
+                if (linha.match(/^(LIÇÃO|LICAO)$/i)) {
+                    if (i + 1 < linhas.length) {
+                        let numLinha = linhas[i + 1].trim();
+                        let numMatch = numLinha.match(/^(\d+)$/);
+                        if (numMatch) {
+                            let num = numMatch[1];
+                            let tituloPartes = [];
+                            let j = i + 2;
+                            while (j < linhas.length && linhas[j].trim() && !linhas[j].trim().match(/^\d+\./)) {
+                                let parte = linhas[j].trim();
+                                if (parte) tituloPartes.push(parte);
+                                j++;
+                            }
+                            let titulo = tituloPartes.join(' ').replace(/\s+/g, ' ');
+                            tituloEncontrado = `LIÇÃO ${num}: ${titulo}`;
+                        } else {
+                            let combined = linhas[i+1].trim();
+                            let numTituloMatch = combined.match(/^(\d+)\s+(.*)/);
+                            if (numTituloMatch) {
+                                let num = numTituloMatch[1];
+                                let titulo = numTituloMatch[2];
+                                tituloEncontrado = `LIÇÃO ${num}: ${titulo}`;
+                            }
+                        }
                     }
+                    break;
                 }
 
-                // Caso 3: "LIÇÃO" sozinha em uma linha, número na próxima, título na seguinte
-                if (linha.match(/^LIÇÃO$/i) && i + 2 < linhas.length) {
-                    const numLinha = linhas[i+1].trim();
-                    const tituloLinha = linhas[i+2].trim();
-                    if (numLinha.match(/^\d+$/) && tituloLinha.match(/^[A-Z\s]{3,}/)) {
-                        tituloEncontrado = `LIÇÃO ${numLinha}: ${tituloLinha}`;
-                        break;
-                    }
+                i++;
+            }
+
+            if (!tituloEncontrado) {
+                const fallback = texto.match(/LIÇÃO\s*(\d+)[:\s]*([^\n]+)/i);
+                if (fallback) {
+                    tituloEncontrado = `LIÇÃO ${fallback[1]}: ${fallback[2].trim()}`;
                 }
             }
 
             if (tituloEncontrado) {
+                tituloEncontrado = tituloEncontrado.replace(/LICAO/i, 'LIÇÃO');
                 document.getElementById('titulo').value = tituloEncontrado;
-            } else {
-                // Fallback: tenta capturar qualquer linha que comece com "LIÇÃO"
-                const fallback = texto.match(/^.*?\bLIÇÃO\b.*?$/im);
-                if (fallback) {
-                    document.getElementById('titulo').value = fallback[0].trim();
-                }
             }
         }
 
+        // Evento para detectar mudanças no textarea e preencher título
         document.getElementById('texto').addEventListener('input', extrairTituloDoTexto);
 
+        // Extrair texto do PDF
         async function extrairPDF() {
             const fileInput = document.getElementById('pdfInput');
             const file = fileInput.files[0];
@@ -219,13 +251,13 @@
                 statusDiv.className = "status ok";
 
                 extrairTituloDoTexto();
-
             } catch (error) {
                 statusDiv.innerText = "❌ Erro ao extrair texto: " + error.message;
                 statusDiv.className = "status erro";
             }
         }
 
+        // Gerar lição via backend
         async function gerar() {
             const titulo = document.getElementById('titulo').value.trim();
             const texto = document.getElementById('texto').value.trim();
@@ -297,6 +329,7 @@
             if (!ultimoResultado) return '';
             let html = ultimoResultado;
 
+            // Converter cabeçalhos Markdown e estruturar
             html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
             html = html.replace(/^## (.*)$/gm, (match, content) => {
                 let clean = content.replace(/<\/?strong>/g, '');
