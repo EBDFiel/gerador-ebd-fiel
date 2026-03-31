@@ -27,12 +27,10 @@ async function callDeepSeek(prompt) {
             max_tokens: 8000
         })
     });
-
     if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`DeepSeek error: ${response.status} - ${errorText}`);
     }
-
     const data = await response.json();
     return data.choices[0].message.content;
 }
@@ -48,46 +46,77 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 
 **INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
 - Use APENAS tags HTML para formatação de negrito: <strong>texto</strong>.
-- NÃO use asteriscos ** ou Markdown.
-- Use apenas texto puro + tags <strong>.
-- Os títulos das seções devem estar em negrito com <strong>, exemplo: <strong>Lição 01: O chamado que transforma a dor em propósito.</strong>, <strong>TEXTO ÁUREO</strong>, etc.
-- Todo o conteúdo original da revista deve vir em negrito com <strong>.
+- O conteúdo original da revista (tudo que vem do texto colado) deve permanecer em texto NORMAL, sem negrito.
+- Apenas os elementos que VOCÊ (IA) cria devem estar em negrito: <strong>ANÁLISE GERAL</strong>, <strong>APOIO PEDAGÓGICO</strong>, <strong>APLICAÇÃO PRÁTICA</strong>, <strong>EU ENSINEI QUE:</strong> e os textos que você escrever dentro dessas seções devem estar em negrito.
+- Os cabeçalhos do formato (TEXTO ÁUREO, VERDADE APLICADA, TEXTOS DE REFERÊNCIA, INTRODUÇÃO, 1-, 1.1., etc.) devem estar em texto NORMAL.
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
-- Inclua os "EU ENSINEI QUE:" nos momentos apropriados (em negrito).
-- **IMPORTANTE:** O título da lição deve vir exatamente como: <strong>${tituloFinal}</strong>.
 
 **Estrutura exata a seguir:**
 
-<strong>${tituloFinal}</strong>
+${tituloFinal}
 
-<strong>TEXTO ÁUREO</strong>
+TEXTO ÁUREO
 [versículo]
 
-<strong>VERDADE APLICADA</strong>
+VERDADE APLICADA
 [texto]
 
-<strong>TEXTOS DE REFERÊNCIA</strong>
+TEXTOS DE REFERÊNCIA
 [versículos]
 
-<strong>INTRODUÇÃO</strong>
-[conteúdo original da revista em negrito com <strong>]
+INTRODUÇÃO
+[conteúdo original da revista]
+
+<strong>ANÁLISE GERAL</strong>
+[seu texto em negrito]
 
 <strong>APOIO PEDAGÓGICO</strong>
-[seu texto]
+[seu texto em negrito]
 
 <strong>APLICAÇÃO PRÁTICA</strong>
-[seu texto]
+[seu texto em negrito]
 
-... (seguir o padrão para todos os tópicos, subtópicos, EU ENSINEI QUE, conclusão)
+1- [Título do primeiro tópico]
+[conteúdo original em texto normal]
+
+1.1. [Subtítulo]
+[conteúdo original em texto normal]
+
+<strong>APOIO PEDAGÓGICO</strong>
+[seu texto em negrito]
+
+<strong>APLICAÇÃO PRÁTICA</strong>
+[seu texto em negrito]
+
+1.2. [Subtítulo]
+[conteúdo original em texto normal]
+
+... (repetir o padrão para todos os subtópicos)
+
+<strong>EU ENSINEI QUE:</strong>
+[frase em negrito]
+
+... (repetir para os tópicos seguintes)
+
+CONCLUSÃO
+[conteúdo original em texto normal]
+
+<strong>APOIO PEDAGÓGICO</strong>
+[seu texto em negrito]
+
+<strong>APLICAÇÃO PRÁTICA</strong>
+[seu texto em negrito]
 
 Aqui está o conteúdo da revista:
 """
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito, sem asteriscos. Não use Markdown.`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação.`;
 
         const resultado = await callDeepSeek(prompt);
+        console.log('Lição gerada, tamanho:', resultado.length);
+
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
@@ -95,33 +124,6 @@ Agora, elabore a lição completa seguindo rigorosamente este formato, usando ap
         res.status(500).json({ error: error.message });
     }
 });
-
-// Rota para baixar o conteúdo como arquivo RTF com formatação
-app.post('/api/download-word', (req, res) => {
-    const { conteudo } = req.body;
-    if (!conteudo) {
-        return res.status(400).json({ error: 'Conteúdo não fornecido' });
-    }
-
-    // Converte tags <strong> para formatação RTF
-    const textoRtf = converterParaRtf(conteudo);
-    const nomeArquivo = `licao_gerada_${Date.now()}.rtf`;
-
-    res.setHeader('Content-Type', 'application/rtf');
-    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
-    res.send(textoRtf);
-});
-
-function converterParaRtf(htmlText) {
-    // RTF simples: substitui <strong> por \b e </strong> por \b0
-    let rtf = htmlText.replace(/<strong>(.*?)<\/strong>/gs, '{\\b $1}');
-    // Substitui quebras de linha por \par
-    rtf = rtf.replace(/\n/g, '\\par ');
-    // Escapa caracteres especiais
-    rtf = rtf.replace(/[\\{}]/g, '\\$&');
-    // Cabeçalho RTF
-    return `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Arial;}} \\f0\\fs24 ${rtf}}`;
-}
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
