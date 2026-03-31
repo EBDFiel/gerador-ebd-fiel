@@ -37,78 +37,36 @@ async function callDeepSeek(prompt) {
     return data.choices[0].message.content;
 }
 
-// Extrai as partes essenciais do texto original
-function extractSections(text) {
-    const sections = {
-        title: '',
-        keyVerse: '',
-        appliedTruth: '',
-        referenceTexts: '',
-        introduction: '',
-        topics: '',
-        conclusion: ''
-    };
-
-    // Título
-    const titleMatch = text.match(/^(LIÇÃO\s+\d+[:\s]+.*)$/im);
-    if (titleMatch) sections.title = titleMatch[1].trim();
-
-    // Texto Áureo
-    const keyVerseMatch = text.match(/TEXTO\s*ÁUREO\s*:?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*VERDADE\s*APLICADA)/i);
-    if (keyVerseMatch) sections.keyVerse = keyVerseMatch[1].trim();
-
-    // Verdade Aplicada
-    const appliedMatch = text.match(/VERDADE\s*APLICADA\s*:?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*TEXTOS\s*DE\s*REFERÊNCIA|\n\s*OBJETIVOS)/i);
-    if (appliedMatch) sections.appliedTruth = appliedMatch[1].trim();
-
-    // Textos de Referência (até a próxima seção importante)
-    const refMatch = text.match(/TEXTOS\s*DE\s*REFERÊNCIA\s*\n([\s\S]*?)(?=\n\s*(INTRODUÇÃO|PONTO\s*DE\s*PARTIDA|OBJETIVOS|LEITURAS|HINOS|MOTIVO|$))/i);
-    if (refMatch) sections.referenceTexts = refMatch[1].trim();
-
-    // Introdução
-    const introMatch = text.match(/INTRODUÇÃO\s*\n([\s\S]*?)(?=\n\s*\d+\.\s+|\n\s*PONTO\s*DE\s*PARTIDA|\n\s*1-)/i);
-    if (introMatch) sections.introduction = introMatch[1].trim();
-
-    // Tópicos (do primeiro 1. até antes de CONCLUSÃO)
-    const topicsMatch = text.match(/(\d+\.\s+[^\n]+[\s\S]*?)(?=\n\s*CONCLUSÃO)/i);
-    if (topicsMatch) sections.topics = topicsMatch[1].trim();
-
-    // Conclusão
-    const conclusionMatch = text.match(/CONCLUSÃO\s*\n([\s\S]*?)$/i);
-    if (conclusionMatch) sections.conclusion = conclusionMatch[1].trim();
-
-    return sections;
-}
-
-// Extrai os títulos dos tópicos principais (1., 2., 3.) para o prompt da IA
-function extractTopicTitles(topicsText) {
+// Extrai títulos dos tópicos principais (linhas que começam com 1-, 2-, 3-)
+function extractTopicTitles(text) {
     const titles = [];
-    const lines = topicsText.split('\n');
+    const lines = text.split('\n');
     for (const line of lines) {
-        if (line.match(/^\d+\.\s+[A-Za-zÀ-ú]/) && !line.includes('.')) {
+        if (line.match(/^\d+[-]\s+[A-Za-zÀ-ú]/)) {
             titles.push(line.trim());
         }
     }
     return titles;
 }
 
-// Rota da API
 app.post('/api/gerar-licao-completa', async (req, res) => {
     try {
         const { titulo, textoOriginal, publico } = req.body;
         console.log('Requisição recebida:', { titulo, tamanho: textoOriginal?.length });
 
-        // Extrair seções
-        const sections = extractSections(textoOriginal);
-        const finalTitle = titulo || sections.title;
-        const topicTitles = extractTopicTitles(sections.topics);
+        // Preserva o texto original
+        let finalLesson = textoOriginal;
 
-        // Construir prompt para a IA (só os blocos que faltam)
-        const prompt = `Você é um professor de EBD. Com base no conteúdo abaixo, gere APENAS os seguintes elementos:
+        // Extrai títulos dos tópicos principais
+        const topicTitles = extractTopicTitles(textoOriginal);
+        console.log('Tópicos principais:', topicTitles);
+
+        // Gera os blocos com a IA
+        const prompt = `Você é um professor de EBD. Com base no texto da lição abaixo, gere APENAS os seguintes elementos:
 
 1. UMA ANÁLISE GERAL (3-4 parágrafos)
-2. PARA CADA UM DOS ${topicTitles.length} TÓPICOS PRINCIPAIS, gere:
-   - APOIO PEDAGÓGICO (sugestões práticas para o professor ensinar aquele tópico)
+2. PARA CADA UM DOS ${topicTitles.length} TÓPICOS PRINCIPAIS listados, gere:
+   - APOIO PEDAGÓGICO (sugestões para o professor ensinar aquele tópico)
    - APLICAÇÃO PRÁTICA (como os alunos podem aplicar)
 3. APOIO PEDAGÓGICO FINAL (orientações para encerrar a aula)
 4. APLICAÇÃO PRÁTICA FINAL (desafios para a semana)
@@ -128,36 +86,23 @@ ${topicTitles.map(t => `📚 APOIO PEDAGÓGICO (${t})
 ⚡ APLICAÇÃO PRÁTICA FINAL
 [texto]
 
-Aqui está o conteúdo da lição (use apenas como referência para gerar os itens acima):
-Título: ${finalTitle}
-Texto Áureo: ${sections.keyVerse}
-Verdade Aplicada: ${sections.appliedTruth}
-Textos de Referência:
-${sections.referenceTexts}
-
-Introdução:
-${sections.introduction}
-
-Tópicos:
-${sections.topics}
-
-Conclusão:
-${sections.conclusion}
+Aqui está o texto da lição (use apenas como referência):
+${textoOriginal.substring(0, 5000)}
 
 IMPORTANTE: Gere APENAS os itens solicitados, sem incluir título, texto áureo, etc. Use exatamente os títulos dos tópicos como estão listados.`;
 
         let generated = '';
         try {
             generated = await callDeepSeek(prompt);
-            console.log('Conteúdo gerado (primeiros 500 chars):', generated.substring(0, 500));
+            console.log('Conteúdo gerado pela IA (primeiros 500 chars):', generated.substring(0, 500));
         } catch (err) {
             console.error('Erro ao chamar DeepSeek:', err);
             generated = '';
         }
 
-        // Extrair os blocos do que foi gerado
+        // Extrair os blocos gerados
         let analysis = '';
-        let topicSupports = []; // array de { apoio, aplicacao }
+        const topicSupports = [];
         let finalSupport = '';
         let finalApplication = '';
 
@@ -166,14 +111,18 @@ IMPORTANTE: Gere APENAS os itens solicitados, sem incluir título, texto áureo,
         if (analysisMatch) analysis = analysisMatch[1].trim();
 
         // Blocos de apoio/aplicação para cada tópico
-        const blockRegex = /📚 APOIO PEDAGÓGICO\s*\(([^)]+)\)\n([\s\S]*?)⚡ APLICAÇÃO PRÁTICA\s*\([^)]+\)\n([\s\S]*?)(?=📚 APOIO PEDAGÓGICO|📚 APOIO PEDAGÓGICO FINAL|$)/g;
-        let match;
-        while ((match = blockRegex.exec(generated)) !== null) {
-            topicSupports.push({
-                title: match[1].trim(),
-                apoio: match[2].trim(),
-                aplicacao: match[3].trim()
-            });
+        for (let i = 0; i < topicTitles.length; i++) {
+            const title = topicTitles[i];
+            const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`📚 APOIO PEDAGÓGICO \\(${escapedTitle}\\)\\n([\\s\\S]*?)⚡ APLICAÇÃO PRÁTICA \\(${escapedTitle}\\)\\n([\\s\\S]*?)(?=📚 APOIO PEDAGÓGICO \\(|$)`);
+            const match = generated.match(regex);
+            if (match && match[1] && match[2]) {
+                topicSupports.push({
+                    title,
+                    apoio: match[1].trim(),
+                    aplicacao: match[2].trim()
+                });
+            }
         }
 
         // Apoios finais
@@ -183,77 +132,50 @@ IMPORTANTE: Gere APENAS os itens solicitados, sem incluir título, texto áureo,
             finalApplication = finalMatch[2].trim();
         }
 
-        // Montar a lição final usando um template fixo
-        let finalLesson = '';
-
-        // 1. Título
-        finalLesson += `${finalTitle}\n\n`;
-
-        // 2. Texto Áureo
-        if (sections.keyVerse) {
-            finalLesson += `📖 TEXTO ÁUREO\n${sections.keyVerse}\n\n`;
-        }
-
-        // 3. Verdade Aplicada
-        if (sections.appliedTruth) {
-            finalLesson += `🎯 VERDADE APLICADA\n${sections.appliedTruth}\n\n`;
-        }
-
-        // 4. Textos de Referência
-        if (sections.referenceTexts) {
-            finalLesson += `📚 TEXTOS DE REFERÊNCIA\n${sections.referenceTexts}\n\n`;
-        }
-
-        // 5. Análise Geral (gerada)
+        // 1. Inserir análise geral antes da introdução
         if (analysis) {
-            finalLesson += `🔍 ANÁLISE GERAL\n${analysis}\n\n`;
+            const introIndex = finalLesson.search(/\nINTRODUÇÃO/i);
+            if (introIndex !== -1) {
+                finalLesson = finalLesson.slice(0, introIndex) + '\n\n' + analysis + '\n\n' + finalLesson.slice(introIndex);
+            }
         }
 
-        // 6. Introdução
-        if (sections.introduction) {
-            finalLesson += `✍️ INTRODUÇÃO\n${sections.introduction}\n\n`;
-        }
-
-        // 7. Tópicos (preservados integralmente)
-        if (sections.topics) {
-            finalLesson += `${sections.topics}\n\n`;
-        }
-
-        // 8. Inserir APOIO PEDAGÓGICO e APLICAÇÃO PRÁTICA após cada tópico principal
-        // Como os tópicos estão em um único bloco, precisamos identificar onde colocar os blocos gerados.
-        // Vamos usar os títulos dos tópicos para encontrar a posição após cada um.
+        // 2. Inserir apoios e aplicações após cada tópico principal
         if (topicSupports.length > 0) {
-            let tempText = finalLesson;
-            for (let i = 0; i < topicTitles.length && i < topicSupports.length; i++) {
-                const title = topicTitles[i];
+            for (let i = 0; i < topicSupports.length; i++) {
                 const support = topicSupports[i];
-                // Encontra o título do tópico no texto
-                const titleRegex = new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s*$)`, 'gm');
-                let lastIndex = 0;
+                // Encontra a posição do título do tópico no texto
+                const titleRegex = new RegExp(`^${support.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'gm');
+                let lastIndex = -1;
                 let match;
-                // Usa o último match para inserir após o tópico
-                while ((match = titleRegex.exec(tempText)) !== null) {
+                while ((match = titleRegex.exec(finalLesson)) !== null) {
                     lastIndex = match.index + match[0].length;
                 }
-                if (lastIndex > 0) {
-                    const insertText = `\n\n📚 APOIO PEDAGÓGICO\n${support.apoio}\n\n⚡ APLICAÇÃO PRÁTICA\n${support.aplicacao}`;
-                    tempText = tempText.slice(0, lastIndex) + insertText + tempText.slice(lastIndex);
+                if (lastIndex !== -1) {
+                    // Encontra o fim do tópico (próximo título principal ou "CONCLUSÃO")
+                    const nextTopicIndex = finalLesson.search(new RegExp(`\n${topicTitles[i+1]?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') || 'CONCLUSÃO'}`, 'i'));
+                    let endIndex = finalLesson.length;
+                    if (nextTopicIndex !== -1) {
+                        endIndex = nextTopicIndex;
+                    }
+                    const insert = `\n\n📚 APOIO PEDAGÓGICO\n${support.apoio}\n\n⚡ APLICAÇÃO PRÁTICA\n${support.aplicacao}`;
+                    finalLesson = finalLesson.slice(0, endIndex) + insert + finalLesson.slice(endIndex);
                 }
             }
-            finalLesson = tempText;
         }
 
-        // 9. Conclusão
-        if (sections.conclusion) {
-            finalLesson += `🏁 CONCLUSÃO\n${sections.conclusion}\n\n`;
-        }
-
-        // 10. Apoio Pedagógico Final e Aplicação Prática Final
-        if (finalSupport) {
-            finalLesson += `📚 APOIO PEDAGÓGICO FINAL\n${finalSupport}\n\n`;
-        }
-        if (finalApplication) {
-            finalLesson += `⚡ APLICAÇÃO PRÁTICA FINAL\n${finalApplication}`;
+        // 3. Inserir apoios finais antes da conclusão
+        if (finalSupport || finalApplication) {
+            const conclusionIndex = finalLesson.search(/\nCONCLUSÃO/i);
+            if (conclusionIndex !== -1) {
+                let insert = '';
+                if (finalSupport) insert += `\n\n📚 APOIO PEDAGÓGICO FINAL\n${finalSupport}`;
+                if (finalApplication) insert += `\n\n⚡ APLICAÇÃO PRÁTICA FINAL\n${finalApplication}`;
+                finalLesson = finalLesson.slice(0, conclusionIndex) + insert + finalLesson.slice(conclusionIndex);
+            } else {
+                if (finalSupport) finalLesson += `\n\n📚 APOIO PEDAGÓGICO FINAL\n${finalSupport}`;
+                if (finalApplication) finalLesson += `\n\n⚡ APLICAÇÃO PRÁTICA FINAL\n${finalApplication}`;
+            }
         }
 
         res.json({ licaoCompleta: finalLesson });
