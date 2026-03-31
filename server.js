@@ -44,145 +44,67 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 
         const tituloFinal = titulo || textoOriginal.match(/^(LIÇÃO\s+\d+[:\s]+.*)$/im)?.[1] || 'Lição';
 
+        // Instrução para usar tags HTML <strong> em vez de **
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
 
 **INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
-- Não use Markdown (não use #, ##, ###, etc.).
-- Use apenas texto puro.
-- Os títulos das seções devem estar em negrito com **, exemplo: **Lição 01: O chamado que transforma a dor em propósito**, **TEXTO ÁUREO**, **VERDADE APLICADA**, **TEXTOS DE REFERÊNCIA**, **INTRODUÇÃO**, **APOIO PEDAGÓGICO**, **APLICAÇÃO PRÁTICA**, **CONCLUSÃO**.
-- Todo o conteúdo original da revista deve vir em negrito com **.
+- Use APENAS tags HTML para formatação de negrito: <strong>texto</strong>.
+- NÃO use asteriscos ** ou Markdown.
+- Use apenas texto puro + tags <strong>.
+- Os títulos das seções devem estar em negrito com <strong>, exemplo: <strong>Lição 01: O chamado que transforma a dor em propósito.</strong>, <strong>TEXTO ÁUREO</strong>, etc.
+- Todo o conteúdo original da revista deve vir em negrito com <strong>.
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
 - Inclua os "EU ENSINEI QUE:" nos momentos apropriados (em negrito).
-- **IMPORTANTE:** O título da lição deve vir exatamente como: **${tituloFinal}** (use o título completo que foi fornecido, não apenas "Lição 1").
+- **IMPORTANTE:** O título da lição deve vir exatamente como: <strong>${tituloFinal}</strong> (use o título completo).
 
 **Estrutura exata a seguir:**
 
-**${tituloFinal}**
+<strong>${tituloFinal}</strong>
 
-**TEXTO ÁUREO**
+<strong>TEXTO ÁUREO</strong>
 [versículo]
 
-**VERDADE APLICADA**
+<strong>VERDADE APLICADA</strong>
 [texto]
 
-**TEXTOS DE REFERÊNCIA**
+<strong>TEXTOS DE REFERÊNCIA</strong>
 [versículos]
 
-**INTRODUÇÃO**
-[conteúdo original da revista em negrito]
+<strong>INTRODUÇÃO</strong>
+[conteúdo original da revista em negrito com <strong>]
 
-**APOIO PEDAGÓGICO**
+<strong>APOIO PEDAGÓGICO</strong>
 [seu texto]
 
-**APLICAÇÃO PRÁTICA**
+<strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto]
 
-**1- [Título do primeiro tópico]**
-[conteúdo original em negrito]
+<strong>1- [Título do primeiro tópico]</strong>
+[conteúdo original em negrito com <strong>]
 
-**1.1. [Subtítulo]**
-[conteúdo original em negrito]
+<strong>1.1. [Subtítulo]</strong>
+[conteúdo original em negrito com <strong>]
 
-**APOIO PEDAGÓGICO**
+<strong>APOIO PEDAGÓGICO</strong>
 [seu texto]
 
-**APLICAÇÃO PRÁTICA**
+<strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto]
 
-**1.2. [Subtítulo]**
-[conteúdo original em negrito]
+... (repetir o padrão para todos os subtópicos)
 
-**APOIO PEDAGÓGICO**
+<strong>EU ENSINEI QUE:</strong>
+[frase em negrito com <strong>]
+
+... (repetir para os tópicos seguintes)
+
+<strong>CONCLUSÃO</strong>
+[conteúdo original em negrito com <strong>]
+
+<strong>APOIO PEDAGÓGICO</strong>
 [seu texto]
 
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**1.3. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**EU ENSINEI QUE:**
-[frase em negrito]
-
-**2- [Título do segundo tópico]**
-[conteúdo original em negrito]
-
-**2.1. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**2.2. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**2.3. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**EU ENSINEI QUE:**
-[frase em negrito]
-
-**3- [Título do terceiro tópico]**
-[conteúdo original em negrito]
-
-**3.1. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**3.2. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**3.3. [Subtítulo]**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
-[seu texto]
-
-**EU ENSINEI QUE:**
-[frase em negrito]
-
-**CONCLUSÃO**
-[conteúdo original em negrito]
-
-**APOIO PEDAGÓGICO**
-[seu texto]
-
-**APLICAÇÃO PRÁTICA**
+<strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto]
 
 Aqui está o conteúdo da revista:
@@ -190,11 +112,12 @@ Aqui está o conteúdo da revista:
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato, sem adicionar cabeçalhos extras. Use apenas texto puro, sem Markdown. Lembre-se de colocar o título exato fornecido: **${tituloFinal}**.`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito, sem asteriscos. Não use Markdown.`;
 
         const resultado = await callDeepSeek(prompt);
         console.log('Lição gerada, tamanho:', resultado.length);
 
+        // Retorna o resultado como texto puro com tags HTML
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
