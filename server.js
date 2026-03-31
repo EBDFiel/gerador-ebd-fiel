@@ -27,12 +27,10 @@ async function callDeepSeek(prompt) {
             max_tokens: 8000
         })
     });
-
     if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`DeepSeek error: ${response.status} - ${errorText}`);
     }
-
     const data = await response.json();
     return data.choices[0].message.content;
 }
@@ -44,7 +42,6 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 
         const tituloFinal = titulo || textoOriginal.match(/^(LIÇÃO\s+\d+[:\s]+.*)$/im)?.[1] || 'Lição';
 
-        // Instrução para usar tags HTML <strong> em vez de **
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
 
 **INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
@@ -55,7 +52,7 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 - Todo o conteúdo original da revista deve vir em negrito com <strong>.
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
 - Inclua os "EU ENSINEI QUE:" nos momentos apropriados (em negrito).
-- **IMPORTANTE:** O título da lição deve vir exatamente como: <strong>${tituloFinal}</strong> (use o título completo).
+- **IMPORTANTE:** O título da lição deve vir exatamente como: <strong>${tituloFinal}</strong>.
 
 **Estrutura exata a seguir:**
 
@@ -79,33 +76,7 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 <strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto]
 
-<strong>1- [Título do primeiro tópico]</strong>
-[conteúdo original em negrito com <strong>]
-
-<strong>1.1. [Subtítulo]</strong>
-[conteúdo original em negrito com <strong>]
-
-<strong>APOIO PEDAGÓGICO</strong>
-[seu texto]
-
-<strong>APLICAÇÃO PRÁTICA</strong>
-[seu texto]
-
-... (repetir o padrão para todos os subtópicos)
-
-<strong>EU ENSINEI QUE:</strong>
-[frase em negrito com <strong>]
-
-... (repetir para os tópicos seguintes)
-
-<strong>CONCLUSÃO</strong>
-[conteúdo original em negrito com <strong>]
-
-<strong>APOIO PEDAGÓGICO</strong>
-[seu texto]
-
-<strong>APLICAÇÃO PRÁTICA</strong>
-[seu texto]
+... (seguir o padrão para todos os tópicos, subtópicos, EU ENSINEI QUE, conclusão)
 
 Aqui está o conteúdo da revista:
 """
@@ -115,9 +86,8 @@ ${textoOriginal}
 Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito, sem asteriscos. Não use Markdown.`;
 
         const resultado = await callDeepSeek(prompt);
-        console.log('Lição gerada, tamanho:', resultado.length);
 
-        // Retorna o resultado como texto puro com tags HTML
+        // Retorna o resultado como HTML para que o navegaco interprete as tags
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
