@@ -50,7 +50,8 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 - Use APENAS tags HTML para formatação de negrito: <strong>texto</strong>.
 - O conteúdo original da revista (tudo que vem do texto colado) deve permanecer em texto NORMAL, sem negrito.
 - Apenas os elementos que VOCÊ (IA) cria devem estar em negrito: <strong>ANÁLISE GERAL</strong>, <strong>APOIO PEDAGÓGICO</strong>, <strong>APLICAÇÃO PRÁTICA</strong>, <strong>EU ENSINEI QUE:</strong> e os textos que você escrever dentro dessas seções devem estar em negrito.
-- Os cabeçalhos do formato (VERSÍCULO DO DIA, VERDADE APLICADA, TEXTOS DE REFERÊNCIA, INTRODUÇÃO, 1-, 1.1., etc.) devem estar em texto NORMAL.
+- Os cabeçalhos do formato devem ser em texto NORMAL.
+- **CRUCIAL:** Para a lição de jovens, o primeiro cabeçalho depois do título é **VERSÍCULO DO DIA**. NÃO use "TEXTO ÁUREO". Use exatamente "VERSÍCULO DO DIA".
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
 
 **Estrutura exata a seguir (para jovens):**
