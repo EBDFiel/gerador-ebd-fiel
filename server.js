@@ -42,7 +42,7 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
         const { titulo, textoOriginal, publico } = req.body;
         console.log('Requisição recebida, tamanho do texto original:', textoOriginal?.length);
 
-        // Monta o prompt exatamente como você usou manualmente no DeepSeek
+        // Prompt exato que funcionou no DeepSeek (apenas adaptado para receber o texto colado)
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
 Mantenha TODO o conteúdo original da revista na íntegra, sem cortes ou alterações.
 a lição é voltada para adultos. 
@@ -75,7 +75,7 @@ A APLICAÇÃO PRÁTICA deve ser curta, objetiva e trazer uma sugestão concreta 
 Aqui está o conteúdo da revista:
 """
 ${textoOriginal}
-"
+"""
 
 Agora, elabore a lição completa seguindo rigorosamente este formato.`;
 
