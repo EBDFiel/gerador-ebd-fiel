@@ -42,20 +42,23 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
         const { titulo, textoOriginal, publico } = req.body;
         console.log('Requisição recebida, tamanho:', textoOriginal?.length);
 
+        // Usar o título fornecido ou extrair do texto
+        const tituloFinal = titulo || textoOriginal.match(/^(LIÇÃO\s+\d+[:\s]+.*)$/im)?.[1] || 'Lição';
+
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
 
 **INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
-- Não use Markdown (não use #, ##, ###, etc.)
-- Não use descritores extras como "Título da Lição:", "ABERTURA OBRIGATÓRIA", "PONTO DE PARTIDA" ou outros cabeçalhos que não estejam no exemplo.
+- Não use Markdown (não use #, ##, ###, etc.).
 - Use apenas texto puro.
-- Os títulos das seções devem estar em negrito com **, exemplo: **Lição 1**, **TEXTO ÁUREO**, **VERDADE APLICADA**, **TEXTOS DE REFERÊNCIA**, **INTRODUÇÃO**, **APOIO PEDAGÓGICO**, **APLICAÇÃO PRÁTICA**, **CONCLUSÃO**.
+- Os títulos das seções devem estar em negrito com **, exemplo: **Lição 01: O chamado que transforma a dor em propósito**, **TEXTO ÁUREO**, **VERDADE APLICADA**, **TEXTOS DE REFERÊNCIA**, **INTRODUÇÃO**, **APOIO PEDAGÓGICO**, **APLICAÇÃO PRÁTICA**, **CONCLUSÃO**.
 - Todo o conteúdo original da revista deve vir em negrito com **.
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
 - Inclua os "EU ENSINEI QUE:" nos momentos apropriados (em negrito).
+- **IMPORTANTE:** O título da lição deve vir exatamente como: **${tituloFinal}** (use o título completo que foi fornecido, não apenas "Lição 1").
 
 **Estrutura exata a seguir:**
 
-**Lição 1**
+**${tituloFinal}**
 
 **TEXTO ÁUREO**
 [versículo]
@@ -188,7 +191,7 @@ Aqui está o conteúdo da revista:
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato, sem adicionar cabeçalhos extras. Use apenas texto puro, sem Markdown.`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, sem adicionar cabeçalhos extras. Use apenas texto puro, sem Markdown. Lembre-se de colocar o título exato fornecido: **${tituloFinal}**.`;
 
         const resultado = await callDeepSeek(prompt);
         console.log('Lição gerada, tamanho:', resultado.length);
