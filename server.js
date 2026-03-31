@@ -1,18 +1,37 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Configuração DeepSeek
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
+// Configuração multer para upload de PDF
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Apenas arquivos PDF são permitidos'), false);
+        }
+    }
+});
+
+// Função para chamar DeepSeek API
 async function callDeepSeek(prompt) {
     const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
         method: 'POST',
@@ -35,6 +54,30 @@ async function callDeepSeek(prompt) {
     return data.choices[0].message.content;
 }
 
+// Endpoint para extrair texto de PDF
+app.post('/api/extrair-pdf', upload.single('pdf'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        }
+
+        const dataBuffer = req.file.buffer;
+        const pdfData = await pdfParse(dataBuffer);
+        const textoExtraido = pdfData.text;
+
+        if (!textoExtraido || textoExtraido.trim().length === 0) {
+            return res.status(400).json({ error: 'Não foi possível extrair texto do PDF. Verifique se o arquivo contém texto.' });
+        }
+
+        console.log('Texto extraído do PDF, tamanho:', textoExtraido.length);
+        res.json({ texto: textoExtraido });
+    } catch (error) {
+        console.error('Erro ao processar PDF:', error);
+        res.status(500).json({ error: 'Erro ao processar o PDF: ' + error.message });
+    }
+});
+
+// Rota principal para gerar a lição
 app.post('/api/gerar-licao-completa', async (req, res) => {
     try {
         const { titulo, textoOriginal, publico } = req.body;
