@@ -125,6 +125,22 @@
     <script>
         let ultimoResultado = '';
 
+        // Função que extrai o título da primeira linha que começa com "LIÇÃO"
+        function extrairTituloDoTexto() {
+            const texto = document.getElementById('texto').value;
+            const linhas = texto.split('\n');
+            for (let linha of linhas) {
+                const linhaTrim = linha.trim();
+                if (linhaTrim.match(/^LIÇÃO\s+\d+[:\s]+/i)) {
+                    document.getElementById('titulo').value = linhaTrim;
+                    break;
+                }
+            }
+        }
+
+        // Detecta mudanças no textarea e preenche o título automaticamente
+        document.getElementById('texto').addEventListener('input', extrairTituloDoTexto);
+
         async function gerar() {
             const titulo = document.getElementById('titulo').value.trim();
             const texto = document.getElementById('texto').value.trim();
@@ -134,7 +150,7 @@
             const panel = document.querySelector('.panel');
             
             if (!titulo) {
-                statusDiv.innerText = "❌ Preencha o título";
+                statusDiv.innerText = "❌ Preencha o título (ou ele será detectado automaticamente ao colar o texto)";
                 statusDiv.className = "status erro";
                 return;
             }
@@ -225,8 +241,6 @@
             html = resultadoHtml.join('\n');
 
             // 4. Extrai as leituras diárias e os hinos (se existirem) para criar a grade e os blocos
-            // Como as leituras estão no texto original, podemos tentar capturá-las do HTML gerado
-            // Vamos criar uma busca simples por Segunda, Terça, etc.
             let readingsHtml = '';
             const weekDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
             let readings = [];
