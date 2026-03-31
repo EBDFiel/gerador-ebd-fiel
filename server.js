@@ -31,6 +31,64 @@ const upload = multer({
     }
 });
 
+// Função para limpar texto extraído de PDF
+function cleanExtractedText(text) {
+    if (!text) return '';
+
+    // Remove caracteres de controle desnecessários
+    let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+    // Quebra em linhas e remove linhas muito curtas que não fazem parte do conteúdo
+    let lines = cleaned.split('\n');
+    let meaningfulLines = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.length === 0) continue;
+        // Ignora linhas que são apenas números de página ou marcadores
+        if (line.match(/^\d+$/) && line.length <= 4) continue;
+        // Remove espaços múltiplos
+        line = line.replace(/\s+/g, ' ');
+        meaningfulLines.push(line);
+    }
+
+    // Junta linhas que foram quebradas no meio da frase
+    let joined = [];
+    for (let i = 0; i < meaningfulLines.length; i++) {
+        let line = meaningfulLines[i];
+        if (i + 1 < meaningfulLines.length) {
+            let next = meaningfulLines[i + 1];
+            // Se a linha não termina com pontuação forte, provavelmente é quebra no meio
+            if (!line.match(/[.!?:;]\s*$/)) {
+                line += ' ' + next;
+                i++;
+            }
+        }
+        joined.push(line);
+    }
+
+    // Junta com dupla quebra de linha para formar parágrafos
+    let result = joined.join('\n\n');
+
+    // Corrige pontuação e espaços extras
+    result = result.replace(/\s+([.,;:!?])/g, '$1');
+    result = result.replace(/\s+–\s+/g, ' – ');
+    result = result.replace(/\s+-\s+/g, ' - ');
+
+    // Reinsere quebras após cabeçalhos conhecidos
+    const headers = [
+        'LIÇÃO', 'TEXTO ÁUREO', 'VERSÍCULO DO DIA', 'VERDADE APLICADA',
+        'TEXTOS DE REFERÊNCIA', 'INTRODUÇÃO', 'CONCLUSÃO', 'OBJETIVOS DA LIÇÃO',
+        'MOMENTO DE ORAÇÃO', 'LEITURA SEMANAL', 'PONTO-CHAVE', 'SUBSÍDIO PARA O EDUCADOR',
+        'EU ENSINEI QUE'
+    ];
+    for (const h of headers) {
+        result = result.replace(new RegExp(`\\b(${h})\\b`, 'gi'), '\n\n$1');
+    }
+
+    return result.trim();
+}
+
 // Função para chamar DeepSeek API
 async function callDeepSeek(prompt) {
     const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
@@ -63,13 +121,14 @@ app.post('/api/extrair-pdf', upload.single('pdf'), async (req, res) => {
 
         const dataBuffer = req.file.buffer;
         const pdfData = await pdfParse(dataBuffer);
-        const textoExtraido = pdfData.text;
+        let textoExtraido = pdfData.text;
 
         if (!textoExtraido || textoExtraido.trim().length === 0) {
             return res.status(400).json({ error: 'Não foi possível extrair texto do PDF. Verifique se o arquivo contém texto.' });
         }
 
-        console.log('Texto extraído do PDF, tamanho:', textoExtraido.length);
+        textoExtraido = cleanExtractedText(textoExtraido);
+        console.log('Texto extraído e limpo, tamanho:', textoExtraido.length);
         res.json({ texto: textoExtraido });
     } catch (error) {
         console.error('Erro ao processar PDF:', error);
