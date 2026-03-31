@@ -155,23 +155,23 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 - Os cabeçalhos do formato devem ser em texto NORMAL.
 - **CRUCIAL:** Para a lição de jovens, o primeiro cabeçalho depois do título é **VERSÍCULO DO DIA**. NÃO use "TEXTO ÁUREO". Use exatamente "VERSÍCULO DO DIA".
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
-- **IMPORTANTE:** O conteúdo original pode conter seções adicionais como "SUBSÍDIO PARA O EDUCADOR", "Complementando", "EU ENSINEI QUE" e outras. Preserve TODAS essas seções exatamente como aparecem no texto original, sem alterações, e coloque-as após a seção correspondente (geralmente após a CONCLUSÃO ou conforme a ordem original).
+- **IMPORTANTE:** O conteúdo original contém as seções "SUBSÍDIO PARA O EDUCADOR" e "Complementando". Coloque **SUBSÍDIO PARA O EDUCADOR** antes da **CONCLUSÃO**, e **Complementando** depois da **CONCLUSÃO**, mas antes do último **EU ENSINEI QUE**.
 
 **Estrutura exata a seguir (para jovens):**
 
 ${tituloFinal}
 
 VERSÍCULO DO DIA
-[versículo]
+[versículo original]
 
 VERDADE APLICADA
-[texto]
+[texto original]
 
 TEXTOS DE REFERÊNCIA
-[versículos]
+[versículos originais]
 
 INTRODUÇÃO
-[conteúdo original da revista]
+[conteúdo original]
 
 <strong>ANÁLISE GERAL</strong>
 [seu texto em negrito]
@@ -183,10 +183,10 @@ INTRODUÇÃO
 [seu texto em negrito]
 
 1- [Título do primeiro tópico]
-[conteúdo original em texto normal]
+[conteúdo original]
 
 1.1. [Subtítulo]
-[conteúdo original em texto normal]
+[conteúdo original]
 
 <strong>APOIO PEDAGÓGICO</strong>
 [seu texto em negrito]
@@ -194,15 +194,16 @@ INTRODUÇÃO
 <strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto em negrito]
 
-... (repetir o padrão para todos os subtópicos)
+... (repetir para os demais tópicos e subtópicos)
 
 <strong>EU ENSINEI QUE:</strong>
-[frase em negrito]
+[frase em negrito – pode aparecer mais vezes no meio]
 
-... (repetir para os tópicos seguintes)
+**SUBSÍDIO PARA O EDUCADOR**
+[conteúdo original, sem negrito]
 
-CONCLUSÃO
-[conteúdo original em texto normal]
+**CONCLUSÃO**
+[conteúdo original, sem negrito]
 
 <strong>APOIO PEDAGÓGICO</strong>
 [seu texto em negrito]
@@ -210,14 +211,18 @@ CONCLUSÃO
 <strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto em negrito]
 
-[Adicione aqui todas as seções adicionais do original, como SUBSÍDIO PARA O EDUCADOR, Complementando, etc., preservando o texto original em formato normal, sem negrito.]
+**Complementando**
+[conteúdo original, sem negrito]
+
+<strong>EU ENSINEI QUE:</strong>
+[frase em negrito – este é o último, após Complementando]
 
 Aqui está o conteúdo da revista:
 """
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação. Lembre-se de incluir todas as seções originais, especialmente as que aparecem após a conclusão, como "SUBSÍDIO PARA O EDUCADOR" e "Complementando".`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação. Siga a ordem exata das seções conforme descrito.`;
 
             const resultado = await callDeepSeek(prompt);
             console.log('Lição para jovens gerada, tamanho:', resultado.length);
