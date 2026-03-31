@@ -38,10 +38,87 @@ async function callDeepSeek(prompt) {
 app.post('/api/gerar-licao-completa', async (req, res) => {
     try {
         const { titulo, textoOriginal, publico } = req.body;
-        console.log('Requisição recebida, tamanho:', textoOriginal?.length);
+        console.log('Requisição recebida, público:', publico, 'tamanho:', textoOriginal?.length);
 
         const tituloFinal = titulo || textoOriginal.match(/^(LIÇÃO\s+\d+[:\s]+.*)$/im)?.[1] || 'Lição';
 
+        // ========== PROMPT PARA JOVENS ==========
+        if (publico === 'jovens') {
+            const prompt = `Preciso que você elabore uma lição bíblica completa para JOVENS seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
+
+**INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
+- Use APENAS tags HTML para formatação de negrito: <strong>texto</strong>.
+- O conteúdo original da revista (tudo que vem do texto colado) deve permanecer em texto NORMAL, sem negrito.
+- Apenas os elementos que VOCÊ (IA) cria devem estar em negrito: <strong>ANÁLISE GERAL</strong>, <strong>APOIO PEDAGÓGICO</strong>, <strong>APLICAÇÃO PRÁTICA</strong>, <strong>EU ENSINEI QUE:</strong> e os textos que você escrever dentro dessas seções devem estar em negrito.
+- Os cabeçalhos do formato (VERSÍCULO DO DIA, VERDADE APLICADA, TEXTOS DE REFERÊNCIA, INTRODUÇÃO, 1-, 1.1., etc.) devem estar em texto NORMAL.
+- Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
+
+**Estrutura exata a seguir (para jovens):**
+
+${tituloFinal}
+
+VERSÍCULO DO DIA
+[versículo]
+
+VERDADE APLICADA
+[texto]
+
+TEXTOS DE REFERÊNCIA
+[versículos]
+
+INTRODUÇÃO
+[conteúdo original da revista]
+
+<strong>ANÁLISE GERAL</strong>
+[seu texto em negrito]
+
+<strong>APOIO PEDAGÓGICO</strong>
+[seu texto em negrito]
+
+<strong>APLICAÇÃO PRÁTICA</strong>
+[seu texto em negrito]
+
+1- [Título do primeiro tópico]
+[conteúdo original em texto normal]
+
+1.1. [Subtítulo]
+[conteúdo original em texto normal]
+
+<strong>APOIO PEDAGÓGICO</strong>
+[seu texto em negrito]
+
+<strong>APLICAÇÃO PRÁTICA</strong>
+[seu texto em negrito]
+
+... (repetir o padrão para todos os subtópicos)
+
+<strong>EU ENSINEI QUE:</strong>
+[frase em negrito]
+
+... (repetir para os tópicos seguintes)
+
+CONCLUSÃO
+[conteúdo original em texto normal]
+
+<strong>APOIO PEDAGÓGICO</strong>
+[seu texto em negrito]
+
+<strong>APLICAÇÃO PRÁTICA</strong>
+[seu texto em negrito]
+
+Aqui está o conteúdo da revista:
+"""
+${textoOriginal}
+"""
+
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação.`;
+
+            const resultado = await callDeepSeek(prompt);
+            console.log('Lição para jovens gerada, tamanho:', resultado.length);
+            return res.json({ licaoCompleta: resultado });
+        }
+
+        // ========== PROMPT PARA ADULTOS (original) ==========
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
 
 **INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
@@ -112,8 +189,7 @@ ${textoOriginal}
 Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação.`;
 
         const resultado = await callDeepSeek(prompt);
-        console.log('Lição gerada, tamanho:', resultado.length);
-
+        console.log('Lição para adultos gerada, tamanho:', resultado.length);
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
