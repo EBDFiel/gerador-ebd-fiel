@@ -42,48 +42,95 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
         const { titulo, textoOriginal, publico } = req.body;
         console.log('Requisição recebida, tamanho do texto original:', textoOriginal?.length);
 
-        // Prompt exato que funcionou no DeepSeek (apenas adaptado para receber o texto colado)
         const prompt = `Preciso que você elabore uma lição bíblica completa seguindo rigorosamente o formato abaixo. Utilize o conteúdo da revista que enviarei e siga estas orientações:
-Mantenha TODO o conteúdo original da revista na íntegra, sem cortes ou alterações.
-a lição é voltada para adultos. 
-Estrutura do documento:
-Cabeçalho com o número da lição
-Título da lição
-TEXTO ÁUREO (com versículo)
-VERDADE APLICADA
-TEXTOS DE REFERÊNCIA (com os versículos)
 
-ABERTURA OBRIGATÓRIA — ANÁLISE GERAL
-Antes de iniciar a lição, escreva uma ANÁLISE GERAL do que será estudado.
-Essa análise deve:
-Explicar com clareza o tema central da lição;
-Mostrar o fio condutor do estudo;
-Destacar as principais verdades bíblicas abordadas;
-Antecipar os impactos práticos na vida do jovem;
-Ser bem desenvolvida — nunca superficial.
-Evite comentários genéricos.
+**INSTRUÇÕES DE FORMATAÇÃO IMPORTANTES:**
+- NÃO use Markdown (não use #, ##, ###, etc.)
+- Use apenas texto puro
+- Os títulos das seções devem estar em negrito com **, exemplo: **INTRODUÇÃO**
+- Todo o conteúdo original da revista deve vir em negrito com **
+- Mantenha a estrutura exatamente como descrita abaixo
 
-INTRODUÇÃO (conteúdo da revista)
-APOIO PEDAGÓGICO (conteúdo complementar que você irá elaborar, com reflexões, contexto histórico, citações de autores, etc.)
-APLICAÇÃO PRÁTICA (uma reflexão concreta do que praticamos no dia a dia e como aplicar o ensino no dia a dia)
-Repetir o padrão para cada tópico e subtópico: conteúdo original da revista, depois APOIO PEDAGÓGICO, depois APLICAÇÃO PRÁTICA
-CONCLUSÃO (conteúdo original da revista, seguido de APOIO PEDAGÓGICO e APLICAÇÃO PRÁTICA)-  a aplicação pratica deverá ser algo que ja fazemos no dia a dia e podemos melhorar.
-O conteúdo original da revista deve vir em negrito para facilitar a identificação.
-O APOIO PEDAGÓGICO deve ser um texto mais profundo, explicativo, com reflexões teológicas, contexto histórico, citações de autores e referências bíblicas.
-A APLICAÇÃO PRÁTICA deve ser curta, objetiva e trazer uma sugestão concreta de como viver o ensino na prática durante a semana.
+**Estrutura do documento:**
+
+**Lição [número]**
+
+**Título da Lição:** [título]
+
+**TEXTO ÁUREO**
+[versículo]
+
+**VERDADE APLICADA**
+[texto]
+
+**TEXTOS DE REFERÊNCIA**
+[versículos]
+
+**ABERTURA OBRIGATÓRIA — ANÁLISE GERAL**
+[texto da análise]
+
+**INTRODUÇÃO**
+[conteúdo original da revista em negrito]
+
+**APOIO PEDAGÓGICO**
+[seu texto complementar]
+
+**APLICAÇÃO PRÁTICA**
+[seu texto curto e objetivo]
+
+**1- [Título do primeiro tópico]**
+[conteúdo original da revista em negrito]
+
+**1.1. [Subtítulo]**
+[conteúdo original em negrito]
+
+**APOIO PEDAGÓGICO**
+[seu texto]
+
+**APLICAÇÃO PRÁTICA**
+[seu texto]
+
+[Repetir o padrão para 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, etc.]
+
+**EU ENSINEI QUE:**
+[frase em negrito]
+
+**2- [Título do segundo tópico]**
+[conteúdo original em negrito]
+
+... (continua o padrão)
+
+**3- [Título do terceiro tópico]**
+[conteúdo original em negrito]
+
+... (continua o padrão)
+
+**CONCLUSÃO**
+[conteúdo original da revista em negrito]
+
+**APOIO PEDAGÓGICO**
+[seu texto]
+
+**APLICAÇÃO PRÁTICA**
+[seu texto]
+
+**Observações importantes:**
+- Todo o conteúdo original da revista deve vir em **negrito**.
+- O APOIO PEDAGÓGICO deve ser um texto mais profundo, com reflexões teológicas, contexto histórico, citações de autores e referências bíblicas.
+- A APLICAÇÃO PRÁTICA deve ser curta, objetiva e trazer uma sugestão concreta de como viver o ensino na prática durante a semana.
+- Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc.
+- Inclua os "EU ENSINEI QUE:" nos momentos apropriados (como no exemplo).
 
 Aqui está o conteúdo da revista:
 """
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato.`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas texto puro, sem Markdown.`;
 
-        console.log('Enviando prompt para DeepSeek...');
         const resultado = await callDeepSeek(prompt);
         console.log('Lição gerada, tamanho:', resultado.length);
 
-        // Retorna exatamente o que a IA produziu, sem manipulações
         res.json({ licaoCompleta: resultado });
 
     } catch (error) {
