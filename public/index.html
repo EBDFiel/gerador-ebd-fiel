@@ -141,14 +141,51 @@
         function extrairTituloDoTexto() {
             const texto = document.getElementById('texto').value;
             const linhas = texto.split('\n');
-            for (let linha of linhas) {
-                const linhaTrim = linha.trim();
-                if (linhaTrim.match(/^LIÇÃO\s+\d+[:\s]+/i)) {
-                    document.getElementById('titulo').value = linhaTrim;
+            let tituloEncontrado = null;
+
+            for (let i = 0; i < linhas.length; i++) {
+                const linha = linhas[i].trim();
+                if (!linha) continue;
+
+                // Caso 1: "LIÇÃO 1: Título"
+                let match = linha.match(/^(LIÇÃO\s+\d+)(?:\s*[:\-]\s*)(.*)$/i);
+                if (match) {
+                    tituloEncontrado = `${match[1]}: ${match[2]}`;
                     break;
+                }
+
+                // Caso 2: "LIÇÃO 1" (sem dois pontos) e título na próxima linha
+                match = linha.match(/^(LIÇÃO\s+\d+)$/i);
+                if (match && i + 1 < linhas.length && linhas[i+1].trim()) {
+                    const tituloLinha = linhas[i+1].trim();
+                    if (tituloLinha.match(/^[A-Z\s]{3,}/) && tituloLinha.length > 3) {
+                        tituloEncontrado = `${match[1]}: ${tituloLinha}`;
+                        break;
+                    }
+                }
+
+                // Caso 3: "LIÇÃO" sozinha em uma linha, número na próxima, título na seguinte
+                if (linha.match(/^LIÇÃO$/i) && i + 2 < linhas.length) {
+                    const numLinha = linhas[i+1].trim();
+                    const tituloLinha = linhas[i+2].trim();
+                    if (numLinha.match(/^\d+$/) && tituloLinha.match(/^[A-Z\s]{3,}/)) {
+                        tituloEncontrado = `LIÇÃO ${numLinha}: ${tituloLinha}`;
+                        break;
+                    }
+                }
+            }
+
+            if (tituloEncontrado) {
+                document.getElementById('titulo').value = tituloEncontrado;
+            } else {
+                // Fallback: tenta capturar qualquer linha que comece com "LIÇÃO"
+                const fallback = texto.match(/^.*?\bLIÇÃO\b.*?$/im);
+                if (fallback) {
+                    document.getElementById('titulo').value = fallback[0].trim();
                 }
             }
         }
+
         document.getElementById('texto').addEventListener('input', extrairTituloDoTexto);
 
         async function extrairPDF() {
