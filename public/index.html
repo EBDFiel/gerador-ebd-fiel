@@ -204,50 +204,41 @@
             alert('Texto copiado!');
         }
         
+        // Função corrigida para gerar HTML limpo
         function gerarHTMLCompleto() {
             if (!ultimoResultado) return '';
             let html = ultimoResultado;
-            // 1. Converte os cabeçalhos Markdown (# Título) para <h1>
+
+            // Converte cabeçalhos Markdown (#, ##, ###) para tags HTML
             html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
-            // 2. Remove os separadores --- e adiciona <hr>
+            html = html.replace(/^## (.*)$/gm, (match, content) => {
+                let clean = content.replace(/<\/?strong>/g, '');
+                return `<h2>${clean}</h2>`;
+            });
+            html = html.replace(/^### (.*)$/gm, (match, content) => {
+                let clean = content.replace(/<\/?strong>/g, '');
+                return `<h3>${clean}</h3>`;
+            });
+
+            // Remove separadores --- e adiciona <hr>
             html = html.replace(/^---$/gm, '<hr>');
-            // 3. Converte os títulos de seção em <h2> (ANÁLISE GERAL, INTRODUÇÃO, etc.)
-            html = html.replace(/^\*\*(ANÁLISE GERAL|INTRODUÇÃO|CONCLUSÃO|SUBSÍDIO PARA O EDUCADOR|EU ENSINEI QUE:)\*\*$/gm, '<h2>$1</h2>');
-            // 4. Converte os títulos de tópicos numerados (1.1., 2.1., etc.) para <h3>
-            html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>');
-            html = html.replace(/^(\d+\.\d+\.) (.*)$/gm, '<h3>$1 $2</h3>');
-            html = html.replace(/^(\d+\.) (.*)$/gm, '<h3>$1 $2</h3>');
-            // 5. Identifica e formata os blocos de APOIO PEDAGÓGICO e APLICAÇÃO PRÁTICA
-            html = html.replace(/\*\*APOIO PEDAGÓGICO\*\*\n([\s\S]*?)(?=\n\*\*|$)/g, function(match, content) {
-                return `<div class="support-box"><strong>📘 APOIO PEDAGÓGICO</strong><br>${content.trim()}</div>`;
-            });
-            html = html.replace(/\*\*APLICAÇÃO PRÁTICA\*\*\n([\s\S]*?)(?=\n\*\*|$)/g, function(match, content) {
-                return `<div class="practice-box"><strong>✅ APLICAÇÃO PRÁTICA</strong><br>${content.trim()}</div>`;
-            });
-            // 6. Converte os trechos com **texto** (negrito) para <strong>texto</strong>
+
+            // Converte títulos de tópicos numerados (1., 1.1., etc.) para <h3>
+            html = html.replace(/^(\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
+            html = html.replace(/^(\d+\.\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
+
+            // Converte negrito **texto** para <strong>
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // 7. Converte as quebras de linha duplas em <p> (parágrafos)
+
+            // Trata parágrafos
             html = html.split('\n\n').map(par => {
                 par = par.trim();
                 if (!par) return '';
                 if (par.startsWith('<h') || par.startsWith('<div') || par.startsWith('<hr') || par.startsWith('<blockquote')) return par;
                 return `<p>${par.replace(/\n/g, '<br>')}</p>`;
             }).join('\n\n');
-            // 8. Extrai as leituras diárias e cria a grade
-            const weekDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-            let readings = [];
-            for (let day of weekDays) {
-                let regex = new RegExp(`${day}\\s*\\|[^\\n]+`, 'g');
-                let match;
-                while ((match = regex.exec(ultimoResultado)) !== null) {
-                    readings.push(match[0]);
-                }
-            }
-            if (readings.length > 0) {
-                const readingsHtml = `<div class="reading-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:1rem; margin:1rem 0">${readings.map(r => `<div class="reading-day">${r}</div>`).join('')}</div>`;
-                html = html.replace(/(<p><strong>TEXTOS DE REFERÊNCIA<\/strong><br>)/, `$1${readingsHtml}`);
-            }
-            // 9. Envolve tudo no documento HTML completo com estilos
+
+            // Monta o HTML final
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -280,7 +271,7 @@ ${html}
             }
             const htmlCompleto = gerarHTMLCompleto();
             await navigator.clipboard.writeText(htmlCompleto);
-            alert('HTML copiado para a área de transferência! Cole em um editor HTML ou site.');
+            alert('HTML copiado!');
         }
 
         function baixarWord() {
