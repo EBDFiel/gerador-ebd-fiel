@@ -59,6 +59,8 @@
         .btn-secondary { background: #2a3d5a; color: #fff; }
         .btn-success { background: #22c55e; color: #fff; }
         .btn-html { background: #0f766e; color: #fff; }
+        .btn-preview { background: #2563eb; color: #fff; }
+        .btn-pdf { background: #dc2626; color: #fff; }
         .status { margin-top: 15px; padding: 12px; border-radius: 10px; }
         .status.ok { background: rgba(34,197,94,.2); color: #86efac; border-left: 4px solid #22c55e; }
         .status.erro { background: rgba(239,68,68,.2); color: #fca5a5; border-left: 4px solid #ef4444; }
@@ -104,13 +106,15 @@
             <div>
                 <label>📄 Texto da Revista (completo)</label>
                 <textarea id="texto" placeholder="Cole aqui o texto completo da revista..."></textarea>
-                <div class="small-note">O texto deve conter: Título, Texto Áureo, Verdade Aplicada, Textos de Referência, Introdução, Tópicos (1., 1.1., etc.), EU ENSINEI QUE e Conclusão</div>
+                <div class="small-note">O texto deve conter: Título, Texto Áureo/Versículo do Dia, Verdade Aplicada, Textos de Referência, Introdução, Tópicos (1., 1.1., etc.), EU ENSINEI QUE e Conclusão</div>
             </div>
             <div>
                 <button class="btn-primary" onclick="gerar()">✨ Gerar Lição</button>
                 <button class="btn-secondary" onclick="limpar()">🗑️ Limpar</button>
                 <button class="btn-success" onclick="copiar()">📋 Copiar Texto</button>
                 <button class="btn-html" onclick="copiarHTML()">🌐 Copiar HTML</button>
+                <button class="btn-preview" onclick="visualizarHTML()">👁️ Visualizar HTML</button>
+                <button class="btn-pdf" onclick="imprimirPDF()">🖨️ Imprimir / PDF</button>
                 <button class="btn-word" onclick="baixarWord()">📄 Baixar Word</button>
             </div>
             <div id="status" class="status"></div>
@@ -204,12 +208,11 @@
             alert('Texto copiado!');
         }
         
-        // Função corrigida para gerar HTML limpo
         function gerarHTMLCompleto() {
             if (!ultimoResultado) return '';
             let html = ultimoResultado;
 
-            // Converte cabeçalhos Markdown (#, ##, ###) para tags HTML
+            // Converte cabeçalhos Markdown
             html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
             html = html.replace(/^## (.*)$/gm, (match, content) => {
                 let clean = content.replace(/<\/?strong>/g, '');
@@ -223,7 +226,7 @@
             // Remove separadores --- e adiciona <hr>
             html = html.replace(/^---$/gm, '<hr>');
 
-            // Converte títulos de tópicos numerados (1., 1.1., etc.) para <h3>
+            // Converte títulos de tópicos numerados
             html = html.replace(/^(\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
             html = html.replace(/^(\d+\.\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
 
@@ -238,7 +241,6 @@
                 return `<p>${par.replace(/\n/g, '<br>')}</p>`;
             }).join('\n\n');
 
-            // Monta o HTML final
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -272,6 +274,29 @@ ${html}
             const htmlCompleto = gerarHTMLCompleto();
             await navigator.clipboard.writeText(htmlCompleto);
             alert('HTML copiado!');
+        }
+
+        function visualizarHTML() {
+            if (!ultimoResultado) {
+                alert('Gere uma lição primeiro');
+                return;
+            }
+            const htmlCompleto = gerarHTMLCompleto();
+            const novaAba = window.open();
+            novaAba.document.write(htmlCompleto);
+            novaAba.document.close();
+        }
+
+        function imprimirPDF() {
+            if (!ultimoResultado) {
+                alert('Gere uma lição primeiro');
+                return;
+            }
+            const htmlCompleto = gerarHTMLCompleto();
+            const janelaImpressao = window.open('', '_blank');
+            janelaImpressao.document.write(htmlCompleto);
+            janelaImpressao.document.close();
+            janelaImpressao.print();
         }
 
         function baixarWord() {
