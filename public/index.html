@@ -58,7 +58,7 @@
         .btn-primary { background: linear-gradient(135deg, #f7b24d, #ff9800); color: #102131; }
         .btn-secondary { background: #2a3d5a; color: #fff; }
         .btn-success { background: #22c55e; color: #fff; }
-        .btn-word { background: #2b5797; color: #fff; }
+        .btn-word { background: #1e3a8a; color: #fff; }
         .status { margin-top: 15px; padding: 12px; border-radius: 10px; }
         .status.ok { background: rgba(34,197,94,.2); color: #86efac; border-left: 4px solid #22c55e; }
         .status.erro { background: rgba(239,68,68,.2); color: #fca5a5; border-left: 4px solid #ef4444; }
@@ -68,7 +68,7 @@
             padding: 25px;
             min-height: 500px;
             white-space: pre-wrap;
-            font-family: monospace;
+            font-family: 'Segoe UI', Arial, sans-serif;
             font-size: 14px;
             line-height: 1.6;
             overflow-x: auto;
@@ -98,7 +98,7 @@
                 </div>
                 <div>
                     <label>📌 Título da Lição</label>
-                    <input id="titulo" placeholder="Ex: Lição 01: O chamado que transforma a dor em propósito">
+                    <input id="titulo" placeholder="Ex: Lição 1: O chamado que transforma a dor em propósito">
                 </div>
             </div>
             <div>
@@ -110,7 +110,7 @@
                 <button class="btn-primary" onclick="gerar()">✨ Gerar Lição</button>
                 <button class="btn-secondary" onclick="limpar()">🗑️ Limpar</button>
                 <button class="btn-success" onclick="copiar()">📋 Copiar</button>
-                <button class="btn-word" onclick="baixarWord()" id="btnDownload" disabled>📄 Baixar Word</button>
+                <button class="btn-word" onclick="baixarWord()">📄 Baixar Word</button>
             </div>
             <div id="status" class="status"></div>
         </div>
@@ -122,7 +122,7 @@
     </div>
 
     <script>
-        let ultimoConteudo = '';
+        let ultimoResultado = '';
 
         async function gerar() {
             const titulo = document.getElementById('titulo').value.trim();
@@ -131,7 +131,6 @@
             const statusDiv = document.getElementById('status');
             const resultadoDiv = document.getElementById('resultado');
             const panel = document.querySelector('.panel');
-            const btnDownload = document.getElementById('btnDownload');
             
             if (!titulo) {
                 statusDiv.innerText = "❌ Preencha o título";
@@ -145,10 +144,9 @@
             }
             
             panel.classList.add('loading');
-            statusDiv.innerText = "⏳ Gerando lição... Isso pode levar até 2 minutos";
+            statusDiv.innerText = "⏳ Gerando... Isso pode levar até 2 minutos";
             statusDiv.className = "status";
             resultadoDiv.innerHTML = '<div style="text-align:center; padding:40px;">🔄 Processando... Aguarde</div>';
-            btnDownload.disabled = true;
             
             try {
                 const response = await fetch('/api/gerar-licao-completa', {
@@ -158,17 +156,17 @@
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error);
-                resultadoDiv.innerText = data.licaoCompleta;
-                ultimoConteudo = data.licaoCompleta;
+                
+                // Guarda o resultado para download
+                ultimoResultado = data.licaoCompleta;
+                resultadoDiv.innerHTML = ultimoResultado;
                 statusDiv.innerText = "✅ Lição gerada com sucesso!";
                 statusDiv.className = "status ok";
-                btnDownload.disabled = false;
             } catch (error) {
                 statusDiv.innerText = "❌ Erro: " + error.message;
                 statusDiv.className = "status erro";
                 resultadoDiv.innerHTML = '<div style="color:#fca5a5; text-align:center;">Erro ao gerar lição</div>';
-                ultimoConteudo = '';
-                btnDownload.disabled = true;
+                ultimoResultado = '';
             } finally {
                 panel.classList.remove('loading');
             }
@@ -180,8 +178,7 @@
             document.getElementById('resultado').innerHTML = '';
             document.getElementById('status').innerHTML = '';
             document.getElementById('status').className = 'status';
-            ultimoConteudo = '';
-            document.getElementById('btnDownload').disabled = true;
+            ultimoResultado = '';
         }
         
         async function copiar() {
@@ -194,29 +191,47 @@
             alert('Copiado!');
         }
         
-        async function baixarWord() {
-            if (!ultimoConteudo) {
-                alert('Nenhuma lição gerada para baixar.');
+        function baixarWord() {
+            if (!ultimoResultado) {
+                alert('Gere uma lição primeiro');
                 return;
             }
-            try {
-                const response = await fetch('/api/download-word', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ conteudo: ultimoConteudo })
-                });
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `licao_${Date.now()}.rtf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } catch (err) {
-                alert('Erro ao baixar arquivo: ' + err.message);
-            }
+            
+            // Cria um conteúdo HTML completo para o Word
+            const conteudoHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Lição EBD</title>
+                    <style>
+                        body {
+                            font-family: 'Arial', sans-serif;
+                            font-size: 12pt;
+                            line-height: 1.5;
+                            margin: 2cm;
+                        }
+                        strong {
+                            font-weight: bold;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${ultimoResultado}
+                </body>
+                </html>
+            `;
+            
+            // Cria um blob e força o download como .doc
+            const blob = new Blob([conteudoHTML], { type: 'application/msword' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = `Licao_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
