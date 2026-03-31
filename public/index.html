@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador EBD Fiel</title>
-    <!-- PDF.js para extrair texto do PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-        // Configurar o worker do pdf.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -67,11 +61,10 @@
         .btn-html { background: #0f766e; color: #fff; }
         .btn-preview { background: #2563eb; color: #fff; }
         .btn-pdf { background: #dc2626; color: #fff; }
-        .btn-upload { background: #7c3aed; color: #fff; }
+        .btn-word { background: #1e3a8a; color: #fff; }
         .status { margin-top: 15px; padding: 12px; border-radius: 10px; }
         .status.ok { background: rgba(34,197,94,.2); color: #86efac; border-left: 4px solid #22c55e; }
         .status.erro { background: rgba(239,68,68,.2); color: #fca5a5; border-left: 4px solid #ef4444; }
-        .status.warning { background: rgba(245,158,11,.2); color: #fbbf24; border-left: 4px solid #f59e0b; }
         .resultado {
             background: #0f1b2e;
             border-radius: 16px;
@@ -86,16 +79,6 @@
         }
         .loading { opacity: 0.6; pointer-events: none; }
         .small-note { font-size: 12px; color: #a7bacb; margin-top: 8px; }
-        .file-input-wrapper {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 8px;
-        }
-        .file-input-wrapper input {
-            flex: 1;
-            background: rgba(0,0,0,.3);
-        }
         @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -103,7 +86,7 @@
     <div class="container">
         <div class="header">
             <h1>✨ Gerador de Lições EBD</h1>
-            <p>Cole o conteúdo completo da revista ou faça upload de um arquivo PDF.</p>
+            <p>Cole o conteúdo completo da revista ou faça upload de um PDF. A IA gerará: ANÁLISE GERAL, APOIO PEDAGÓGICO (após cada tópico), APLICAÇÃO PRÁTICA (após cada tópico), APOIO PEDAGÓGICO FINAL e APLICAÇÃO PRÁTICA FINAL.</p>
         </div>
         
         <div class="panel">
@@ -121,14 +104,18 @@
                     <input id="titulo" placeholder="Ex: Lição 1: O chamado que transforma a dor em propósito">
                 </div>
             </div>
+
+            <div style="margin-bottom: 15px;">
+                <label>📄 Anexar PDF da revista</label>
+                <input type="file" id="pdfInput" accept="application/pdf" style="display: inline-block; width: auto;">
+                <button class="btn-secondary" onclick="extrairPDF()" style="margin-left: 10px;">📄 Extrair Texto</button>
+                <div class="small-note">O texto extraído será colado no campo abaixo. Você pode editar se necessário.</div>
+            </div>
+
             <div>
                 <label>📄 Texto da Revista (completo)</label>
                 <textarea id="texto" placeholder="Cole aqui o texto completo da revista..."></textarea>
-                <div class="small-note">Ou faça upload de um PDF para extrair o texto automaticamente.</div>
-                <div class="file-input-wrapper">
-                    <input type="file" id="pdfFile" accept="application/pdf">
-                    <button class="btn-upload" onclick="extrairPDF()" style="margin-top:0;">📄 Extrair Texto do PDF</button>
-                </div>
+                <div class="small-note">O texto deve conter: Título, Texto Áureo/Versículo do Dia, Verdade Aplicada, Textos de Referência, Introdução, Tópicos (1., 1.1., etc.), EU ENSINEI QUE e Conclusão</div>
             </div>
             <div>
                 <button class="btn-primary" onclick="gerar()">✨ Gerar Lição</button>
@@ -165,37 +152,39 @@
         document.getElementById('texto').addEventListener('input', extrairTituloDoTexto);
 
         async function extrairPDF() {
-            const fileInput = document.getElementById('pdfFile');
+            const fileInput = document.getElementById('pdfInput');
             const file = fileInput.files[0];
+            const statusDiv = document.getElementById('status');
+
             if (!file) {
-                alert('Selecione um arquivo PDF primeiro.');
+                statusDiv.innerText = "❌ Selecione um arquivo PDF primeiro.";
+                statusDiv.className = "status erro";
                 return;
             }
 
-            const statusDiv = document.getElementById('status');
+            const formData = new FormData();
+            formData.append('pdf', file);
+
             statusDiv.innerText = "⏳ Extraindo texto do PDF...";
-            statusDiv.className = "status warning";
-            
+            statusDiv.className = "status";
+
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let fullText = "";
-                
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map(item => item.str).join(' ');
-                    fullText += pageText + "\n\n";
-                }
-                
-                document.getElementById('texto').value = fullText.trim();
-                extrairTituloDoTexto(); // Tenta extrair título do texto colado
-                statusDiv.innerText = "✅ Texto extraído com sucesso! Verifique e ajuste se necessário.";
+                const response = await fetch('/api/extrair-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+
+                const textarea = document.getElementById('texto');
+                textarea.value = data.texto;
+                statusDiv.innerText = "✅ Texto extraído com sucesso! Verifique e faça ajustes se necessário.";
                 statusDiv.className = "status ok";
-                
+
+                extrairTituloDoTexto();
+
             } catch (error) {
-                console.error('Erro ao extrair PDF:', error);
-                statusDiv.innerText = "❌ Erro ao extrair texto do PDF. Verifique se o arquivo é válido.";
+                statusDiv.innerText = "❌ Erro ao extrair texto: " + error.message;
                 statusDiv.className = "status erro";
             }
         }
@@ -253,7 +242,7 @@
             document.getElementById('resultado').innerHTML = '';
             document.getElementById('status').innerHTML = '';
             document.getElementById('status').className = 'status';
-            document.getElementById('pdfFile').value = '';
+            document.getElementById('pdfInput').value = '';
             ultimoResultado = '';
         }
         
@@ -280,12 +269,10 @@
                 let clean = content.replace(/<\/?strong>/g, '');
                 return `<h3>${clean}</h3>`;
             });
-
             html = html.replace(/^---$/gm, '<hr>');
             html = html.replace(/^(\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
             html = html.replace(/^(\d+\.\d+\.) (.*)$/gm, (match, num, title) => `<h3>${num} ${title}</h3>`);
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
             html = html.split('\n\n').map(par => {
                 par = par.trim();
                 if (!par) return '';
