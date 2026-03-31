@@ -75,12 +75,12 @@ function cleanExtractedText(text) {
     result = result.replace(/\s+–\s+/g, ' – ');
     result = result.replace(/\s+-\s+/g, ' - ');
 
-    // Reinsere quebras após cabeçalhos conhecidos
+    // Reinsere quebras após cabeçalhos conhecidos (incluindo os da revista de jovens)
     const headers = [
         'LIÇÃO', 'TEXTO ÁUREO', 'VERSÍCULO DO DIA', 'VERDADE APLICADA',
         'TEXTOS DE REFERÊNCIA', 'INTRODUÇÃO', 'CONCLUSÃO', 'OBJETIVOS DA LIÇÃO',
         'MOMENTO DE ORAÇÃO', 'LEITURA SEMANAL', 'PONTO-CHAVE', 'SUBSÍDIO PARA O EDUCADOR',
-        'EU ENSINEI QUE'
+        'SUBSÍDIO', 'Complementando', 'EU ENSINEI QUE'
     ];
     for (const h of headers) {
         result = result.replace(new RegExp(`\\b(${h})\\b`, 'gi'), '\n\n$1');
@@ -155,6 +155,7 @@ app.post('/api/gerar-licao-completa', async (req, res) => {
 - Os cabeçalhos do formato devem ser em texto NORMAL.
 - **CRUCIAL:** Para a lição de jovens, o primeiro cabeçalho depois do título é **VERSÍCULO DO DIA**. NÃO use "TEXTO ÁUREO". Use exatamente "VERSÍCULO DO DIA".
 - Mantenha a numeração dos tópicos exatamente como 1-, 1.1., 1.2., etc., e subtópicos.
+- **IMPORTANTE:** O conteúdo original pode conter seções adicionais como "SUBSÍDIO PARA O EDUCADOR", "Complementando", "EU ENSINEI QUE" e outras. Preserve TODAS essas seções exatamente como aparecem no texto original, sem alterações, e coloque-as após a seção correspondente (geralmente após a CONCLUSÃO ou conforme a ordem original).
 
 **Estrutura exata a seguir (para jovens):**
 
@@ -209,12 +210,14 @@ CONCLUSÃO
 <strong>APLICAÇÃO PRÁTICA</strong>
 [seu texto em negrito]
 
+[Adicione aqui todas as seções adicionais do original, como SUBSÍDIO PARA O EDUCADOR, Complementando, etc., preservando o texto original em formato normal, sem negrito.]
+
 Aqui está o conteúdo da revista:
 """
 ${textoOriginal}
 """
 
-Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação.`;
+Agora, elabore a lição completa seguindo rigorosamente este formato, usando apenas tags <strong> para negrito nos elementos que você criar. O conteúdo original não deve ter formatação. Lembre-se de incluir todas as seções originais, especialmente as que aparecem após a conclusão, como "SUBSÍDIO PARA O EDUCADOR" e "Complementando".`;
 
             const resultado = await callDeepSeek(prompt);
             console.log('Lição para jovens gerada, tamanho:', resultado.length);
