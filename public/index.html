@@ -58,7 +58,7 @@
         .btn-primary { background: linear-gradient(135deg, #f7b24d, #ff9800); color: #102131; }
         .btn-secondary { background: #2a3d5a; color: #fff; }
         .btn-success { background: #22c55e; color: #fff; }
-        .btn-word { background: #1e3a8a; color: #fff; }
+        .btn-html { background: #0f766e; color: #fff; }
         .status { margin-top: 15px; padding: 12px; border-radius: 10px; }
         .status.ok { background: rgba(34,197,94,.2); color: #86efac; border-left: 4px solid #22c55e; }
         .status.erro { background: rgba(239,68,68,.2); color: #fca5a5; border-left: 4px solid #ef4444; }
@@ -82,7 +82,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>✨ Gerador de Lições EBD - Classe Adultos</h1>
+            <h1>✨ Gerador de Lições EBD</h1>
             <p>Cole o conteúdo completo da revista. A IA gerará: ANÁLISE GERAL, APOIO PEDAGÓGICO (após cada tópico), APLICAÇÃO PRÁTICA (após cada tópico), APOIO PEDAGÓGICO FINAL e APLICAÇÃO PRÁTICA FINAL.</p>
         </div>
         
@@ -109,7 +109,8 @@
             <div>
                 <button class="btn-primary" onclick="gerar()">✨ Gerar Lição</button>
                 <button class="btn-secondary" onclick="limpar()">🗑️ Limpar</button>
-                <button class="btn-success" onclick="copiar()">📋 Copiar</button>
+                <button class="btn-success" onclick="copiar()">📋 Copiar Texto</button>
+                <button class="btn-html" onclick="copiarHTML()">🌐 Copiar HTML</button>
                 <button class="btn-word" onclick="baixarWord()">📄 Baixar Word</button>
             </div>
             <div id="status" class="status"></div>
@@ -187,40 +188,160 @@
                 return;
             }
             await navigator.clipboard.writeText(texto);
-            alert('Copiado!');
+            alert('Texto copiado!');
         }
         
+        // Função que transforma o texto gerado em HTML completo com estilo do modelo
+        function gerarHTMLCompleto() {
+            if (!ultimoResultado) return '';
+
+            let html = ultimoResultado;
+
+            // 1. Converte os cabeçalhos principais (que estão com <strong>) em <p><strong>...</strong><br> com quebra automática
+            html = html.replace(/<strong>(TEXTO ÁUREO|VERDADE APLICADA|TEXTOS DE REFERÊNCIA|INTRODUÇÃO|CONCLUSÃO)<\/strong>/g, '<p><strong>$1</strong><br>');
+            html = html.replace(/<strong>(1-|2-|3-|1\.1\.|1\.2\.|1\.3\.|2\.1\.|2\.2\.|2\.3\.|3\.1\.|3\.2\.|3\.3\.)/g, '<h3><strong>$1</h3>'); // títulos de tópicos
+            html = html.replace(/<strong>(EU ENSINEI QUE:)<\/strong>/g, '<p><strong>$1</strong><br>');
+
+            // 2. Identifica blocos de APOIO PEDAGÓGICO e APLICAÇÃO PRÁTICA e envolve em caixas estilizadas
+            html = html.replace(/<strong>APOIO PEDAGÓGICO<\/strong><br>([\s\S]*?)(?=<strong>APLICAÇÃO PRÁTICA|<strong>1-|<strong>2-|<strong>3-|<strong>CONCLUSÃO|<div|$)/g, function(match, content) {
+                return `<div class="support-box"><strong>📘 APOIO PEDAGÓGICO</strong><br>${content.trim()}</div>`;
+            });
+            html = html.replace(/<strong>APLICAÇÃO PRÁTICA<\/strong><br>([\s\S]*?)(?=<strong>1-|<strong>2-|<strong>3-|<strong>CONCLUSÃO|<div|$)/g, function(match, content) {
+                return `<div class="practice-box"><strong>✅ APLICAÇÃO PRÁTICA</strong><br>${content.trim()}</div>`;
+            });
+
+            // 3. Trata os parágrafos normais: linhas que não estão dentro de tags <div> ou <h3> viram <p>
+            let linhas = html.split('\n');
+            let resultadoHtml = [];
+            for (let linha of linhas) {
+                let l = linha.trim();
+                if (!l) continue;
+                if (l.startsWith('<div') || l.startsWith('<h3') || l.startsWith('<p>') || l.startsWith('<ul') || l.startsWith('<blockquote')) {
+                    resultadoHtml.push(l);
+                } else {
+                    resultadoHtml.push(`<p>${l}</p>`);
+                }
+            }
+            html = resultadoHtml.join('\n');
+
+            // 4. Extrai as leituras diárias e os hinos (se existirem) para criar a grade e os blocos
+            // Como as leituras estão no texto original, podemos tentar capturá-las do HTML gerado
+            // Vamos criar uma busca simples por Segunda, Terça, etc.
+            let readingsHtml = '';
+            const weekDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+            let readings = [];
+            for (let day of weekDays) {
+                let regex = new RegExp(`${day}\\s*\\|[^\\n]+`, 'g');
+                let match;
+                while ((match = regex.exec(ultimoResultado)) !== null) {
+                    readings.push(match[0]);
+                }
+            }
+            if (readings.length > 0) {
+                readingsHtml = `<div class="reading-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:1rem; margin:1rem 0">`;
+                readings.forEach(r => {
+                    readingsHtml += `<div class="reading-day">${r}</div>`;
+                });
+                readingsHtml += `</div>`;
+                // Substituir onde estava o bloco de leituras (vou inserir após os textos de referência)
+                html = html.replace(/<p><strong>TEXTOS DE REFERÊNCIA<\/strong><br>/, `$&${readingsHtml}`);
+            }
+
+            // 5. Adiciona o título principal (se existir no início)
+            let titleMatch = ultimoResultado.match(/<strong>(Lição\s+\d+[:\s]+.*?)<\/strong>/);
+            if (titleMatch) {
+                html = `<h1>${titleMatch[1]}</h1>\n` + html;
+            }
+
+            // 6. Envolve tudo em um documento HTML básico com estilos (para copiar e usar em qualquer lugar)
+            const finalHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lição EBD</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f9fafb;
+            color: #111827;
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #b45309;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+        h3 {
+            font-size: 1.3rem;
+            margin-top: 1.5rem;
+            color: #1f2937;
+        }
+        .support-box {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            border-left: 4px solid #3b82f6;
+        }
+        .practice-box {
+            background: #f0fdf4;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            border-left: 4px solid #22c55e;
+        }
+        .reading-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .reading-day {
+            background: #eef2ff;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        blockquote {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            font-style: italic;
+        }
+        hr {
+            margin: 1.5rem 0;
+            border-color: #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+            return finalHtml;
+        }
+
+        async function copiarHTML() {
+            if (!ultimoResultado) {
+                alert('Gere uma lição primeiro');
+                return;
+            }
+            const htmlCompleto = gerarHTMLCompleto();
+            await navigator.clipboard.writeText(htmlCompleto);
+            alert('HTML copiado para a área de transferência! Cole em um editor HTML ou site.');
+        }
+
         function baixarWord() {
             if (!ultimoResultado) {
                 alert('Gere uma lição primeiro');
                 return;
             }
-            
-            // Converte <strong> para negrito que o Word reconhece
-            const conteudoHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Lição EBD</title>
-                    <style>
-                        body {
-                            font-family: 'Arial', sans-serif;
-                            font-size: 12pt;
-                            line-height: 1.5;
-                            margin: 2cm;
-                        }
-                        strong {
-                            font-weight: bold;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${ultimoResultado}
-                </body>
-                </html>
-            `;
-            
+            const conteudoHTML = gerarHTMLCompleto();
             const blob = new Blob([conteudoHTML], { type: 'application/msword' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
