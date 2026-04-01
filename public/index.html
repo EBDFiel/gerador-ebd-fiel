@@ -138,7 +138,7 @@
     <script>
         let ultimoResultado = '';
 
-        // Detecção robusta do título a partir do texto colado/extraído
+        // Detecção robusta do título
         function extrairTituloDoTexto() {
             const texto = document.getElementById('texto').value;
             const linhas = texto.split('\n');
@@ -149,7 +149,7 @@
                 let linha = linhas[i].trim();
                 if (!linha) { i++; continue; }
 
-                // Caso 1: "LIÇÃO 1" ou "LICAO 2" na mesma linha (com ou sem dois pontos)
+                // Caso 1: "LIÇÃO 1" na mesma linha
                 let match = linha.match(/^(LIÇÃO|LICAO)\s+(\d+)(?:\s*[:\-]\s*(.*))?$/i);
                 if (match) {
                     let num = match[2];
@@ -157,7 +157,6 @@
                     if (resto) {
                         tituloEncontrado = `LIÇÃO ${num}: ${resto}`;
                     } else {
-                        // título nas próximas linhas
                         let tituloPartes = [];
                         let j = i + 1;
                         while (j < linhas.length && linhas[j].trim() && !linhas[j].trim().match(/^\d+\./)) {
@@ -216,10 +215,8 @@
             }
         }
 
-        // Evento para detectar mudanças no textarea e preencher título
         document.getElementById('texto').addEventListener('input', extrairTituloDoTexto);
 
-        // Extrair texto do PDF
         async function extrairPDF() {
             const fileInput = document.getElementById('pdfInput');
             const file = fileInput.files[0];
@@ -257,7 +254,6 @@
             }
         }
 
-        // Gerar lição via backend
         async function gerar() {
             const titulo = document.getElementById('titulo').value.trim();
             const texto = document.getElementById('texto').value.trim();
@@ -329,7 +325,6 @@
             if (!ultimoResultado) return '';
             let html = ultimoResultado;
 
-            // Converter cabeçalhos Markdown e estruturar
             html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
             html = html.replace(/^## (.*)$/gm, (match, content) => {
                 let clean = content.replace(/<\/?strong>/g, '');
