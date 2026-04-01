@@ -35,30 +35,27 @@ const upload = multer({
 function cleanExtractedText(text) {
     if (!text) return '';
 
-    // Remove caracteres de controle desnecessários
+    // Remove caracteres de controle
     let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
-    // Quebra em linhas e remove linhas muito curtas que não fazem parte do conteúdo
+    // Quebra em linhas e remove linhas curtas e números de página
     let lines = cleaned.split('\n');
     let meaningfulLines = [];
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
         if (line.length === 0) continue;
-        // Ignora linhas que são apenas números de página ou marcadores
-        if (line.match(/^\d+$/) && line.length <= 4) continue;
-        // Remove espaços múltiplos
+        if (line.match(/^\d+$/) && line.length <= 4) continue; // números de página
         line = line.replace(/\s+/g, ' ');
         meaningfulLines.push(line);
     }
 
-    // Junta linhas que foram quebradas no meio da frase
+    // Junta linhas quebradas no meio da frase
     let joined = [];
     for (let i = 0; i < meaningfulLines.length; i++) {
         let line = meaningfulLines[i];
         if (i + 1 < meaningfulLines.length) {
             let next = meaningfulLines[i + 1];
-            // Se a linha não termina com pontuação forte, provavelmente é quebra no meio
             if (!line.match(/[.!?:;]\s*$/)) {
                 line += ' ' + next;
                 i++;
@@ -67,15 +64,14 @@ function cleanExtractedText(text) {
         joined.push(line);
     }
 
-    // Junta com dupla quebra de linha para formar parágrafos
     let result = joined.join('\n\n');
 
-    // Corrige pontuação e espaços extras
+    // Corrige pontuação e espaços
     result = result.replace(/\s+([.,;:!?])/g, '$1');
     result = result.replace(/\s+–\s+/g, ' – ');
     result = result.replace(/\s+-\s+/g, ' - ');
 
-    // Reinsere quebras após cabeçalhos conhecidos (incluindo os da revista de jovens)
+    // Reinsere quebras após cabeçalhos conhecidos
     const headers = [
         'LIÇÃO', 'TEXTO ÁUREO', 'VERSÍCULO DO DIA', 'VERDADE APLICADA',
         'TEXTOS DE REFERÊNCIA', 'INTRODUÇÃO', 'CONCLUSÃO', 'OBJETIVOS DA LIÇÃO',
